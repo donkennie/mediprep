@@ -19,7 +19,7 @@ export class Commands {
     ) {
         this.checkoutPaystack = new CheckoutPaystackC(salesRepository, userRepository, cartRepository, paystackClient)
         this.checkoutStripe = new CheckoutStripeC(salesRepository, userRepository, cartRepository, stripeClient)
-        this.examSubscribe = new ExamSubscribeC(salesRepository, userRepository)
+        this.examSubscribe = new ExamSubscribeC(salesRepository, userRepository,cartRepository)
     }
 }
 

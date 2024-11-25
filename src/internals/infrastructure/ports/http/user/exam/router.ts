@@ -1,8 +1,8 @@
-import {ExamServices} from "../../../../../app/exam/exam";
-import {AdminServices} from "../../../../../app/admin/admin";
-import {NextFunction, Request, Response, Router} from "express";
-import {ExamHandler as AdminExamHAndler} from "../../admin/exam/handler";
-import {ExamHandler} from "./handler";
+import { ExamServices } from "../../../../../app/exam/exam";
+import { AdminServices } from "../../../../../app/admin/admin";
+import { NextFunction, Request, Response, Router } from "express";
+import { ExamHandler as AdminExamHAndler } from "../../admin/exam/handler";
+import { ExamHandler } from "./handler";
 import ValidationMiddleware from "../../../../../../pkg/middleware/validation";
 import {
     courseIdSchema,
@@ -10,9 +10,9 @@ import {
     questionIdSchema,
     userExamIdSchema
 } from "../../../../../../pkg/validations/exam";
-import {UserExamAccessService} from "../../../../../app/examAccess/examAccess";
-import {CheckExamAccess} from "../../../../../../pkg/middleware/checkExamAccess";
-import {z} from "zod";
+import { UserExamAccessService } from "../../../../../app/examAccess/examAccess";
+import { CheckExamAccess } from "../../../../../../pkg/middleware/checkExamAccess";
+import { z } from "zod";
 
 export class ExamRouter {
     router: Router;
@@ -87,13 +87,14 @@ export class ExamRouter {
 
         this.router.route("/:examId/tag").get(
             ValidationMiddleware(userExamIdSchema, "params"),
-            ValidationMiddleware(paginationSchema,"query"),
+            ValidationMiddleware(paginationSchema, "query"),
             CheckExamAccess(userExamAccessService),
             this.examHandler.getTaggedQuestion
         )
+
         this.router.route("/:examId/report").get(
             ValidationMiddleware(userExamIdSchema, "params"),
-            ValidationMiddleware(paginationSchema,"query"),
+            ValidationMiddleware(paginationSchema, "query"),
             CheckExamAccess(userExamAccessService),
             this.examHandler.getReportQuestion
 
@@ -105,11 +106,17 @@ export class ExamRouter {
             CheckExamAccess(userExamAccessService),
             this.examHandler.tagQuestion
         )
-
+        this.router.route("/:examId/:questionId/unTag").post(
+            ValidationMiddleware(userExamIdSchema, "params"),
+            ValidationMiddleware(questionIdSchema, "params"),
+            CheckExamAccess(userExamAccessService),
+            this.examHandler.unTagQuestion
+        )
+        
         this.router.route("/:examId/:questionId/report").post(
             ValidationMiddleware(userExamIdSchema, "params"),
             ValidationMiddleware(questionIdSchema, "params"),
-            ValidationMiddleware(z.object({reason: z.string()}), "body"),
+            ValidationMiddleware(z.object({ reason: z.string() }), "body"),
             CheckExamAccess(userExamAccessService),
             this.examHandler.reportQuestion
         )

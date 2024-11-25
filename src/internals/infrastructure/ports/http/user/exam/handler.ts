@@ -59,7 +59,10 @@ export class ExamHandler {
         await this.examServices.commands.tagQuestion.Handle(req.userD?.id as string, req.params.questionId)
         new SuccessResponse(res, { message: "question Tagged" }).send();
     }
-
+    unTagQuestion = async (req: Request, res: Response) => {
+        await this.examServices.commands.unTagQuestion.Handle(req.userD?.id as string, req.params.questionId)
+        new SuccessResponse(res, { message: "question un tagged" }).send();
+    }
     reportQuestion = async (req: Request, res: Response) => {
         await this.examServices.commands.reportQuestion.Handle(req.userD?.id as string, req.params.questionId, req.body.reason)
         new SuccessResponse(res, { message: "question reported" }).send();

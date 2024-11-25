@@ -46,7 +46,7 @@ export class CheckoutPaystackC implements CheckoutPaystack {
                 // currency:"usd"
             }
             // clear cart
-            await this.cartRepository.ClearCart(params.userID)
+            // await this.cartRepository.ClearCart(params.userID)
 
             // initialize paystack transaction
             const response = await this.paystackClient.transaction.initialize(transactionInitializer).catch(async (error) => {

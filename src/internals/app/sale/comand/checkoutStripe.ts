@@ -45,7 +45,7 @@ export class CheckoutStripeC implements CheckoutStripe {
                 email: user.email
             }
             // clear cart
-            await this.cartRepository.ClearCart(params.userID)
+            // await this.cartRepository.ClearCart(params.userID)
 
             // initialize paystack transaction
             const paymentIntent = await this.stripeClient.paymentIntents.create({

@@ -1,36 +1,37 @@
-import {AddExamCommand, AddExamCommandC} from "./commands/addExam";
-import {ExamRepository} from "../../domain/exams/repository";
-import {EditExamCommand, EditExamCommandC} from "./commands/editExam";
-import {UploadExamImageCommand, UploadExamImageCommandC} from "./commands/uploadExamImage";
-import {StorageRepository} from "../../domain/storage/repository";
-import {DeleteExamCommand, DeleteExamCommandC} from "./commands/deleteExam";
-import {GetExamsQuery, GetExamsQueryC} from "./query/getExams";
-import {AddCourseCommand, AddCourseCommandC} from "./commands/addCourse";
-import {DeleteCourseCommand, DeleteCourseCommandC} from "./commands/deleteCourse";
-import {EditCourseCommand, EditCourseCommandC} from "./commands/editCourse";
-import {GetCoursesQuery, GetCoursesQueryC} from "./query/getCourses";
-import {AddSubjectCommand, AddSubjectCommandC} from "./commands/addSubject";
-import {EditSubjectCommand, EditSubjectCommandC} from "./commands/editSubject";
-import {DeleteSubjectCommand, DeleteSubjectCommandC} from "./commands/deleteSubject";
-import {GetSubjectsQuery, GetSubjectsQueryC} from "./query/getSubjects";
-import {AddQuestionCommand, AddQuestionCommandC} from "./commands/addQuestion";
-import {EditQuestionCommand, EditQuestionCommandC} from "./commands/editQuestion";
-import {DeleteQuestionCommand, DeleteQuestionCommandC} from "./commands/deleteQuestion";
-import {GetQuestionsQuery, GetQuestionsQueryC} from "./query/getQuestions";
-import {QueueRepository} from "../../domain/queue/repository";
-import {AddQuestionFileCommand, AddQuestionFileCommandC} from "./commands/addQuestionFile";
-import {GetExamsAnalytics, GetExamsAnalyticsC} from "./query/getExamAnalytics";
-import {TestRepository} from "../../domain/tests/repository";
-import {TagQuestionCommand, TagQuestionCommandC} from "./commands/tagQuestion";
-import {ReportQuestionCommand, ReportQuestionCommandC} from "./commands/reportQuestion";
-import {GetExamsDetails, GetExamsDetailsC} from "./query/getExamDetails";
-import {AddExamDiscountCommand, AddExamDiscountCommandC} from "./commands/addExamDiscount";
-import {GetTaggedQuestionsQuery, GetTaggedQuestionsQueryC} from "./query/getTaggedQuestion";
-import {GetReportedQuestionsQuery, GetReportedQuestionsQueryC} from "./query/getReportedQuestions";
-import {GetQuestionByIdQuery, GetQuestionByIdQueryC} from "./query/getQuestionById";
-import {UploadImageCommand, UploadImageCommandC} from "./commands/uploadImage";
-import {GetQuestionBatch, GetQuestionBatchC} from "./query/getBatchSatus";
-import {DeleteDiscountCommandC} from "./commands/deleteDiscount";
+import { AddExamCommand, AddExamCommandC } from "./commands/addExam";
+import { ExamRepository } from "../../domain/exams/repository";
+import { EditExamCommand, EditExamCommandC } from "./commands/editExam";
+import { UploadExamImageCommand, UploadExamImageCommandC } from "./commands/uploadExamImage";
+import { StorageRepository } from "../../domain/storage/repository";
+import { DeleteExamCommand, DeleteExamCommandC } from "./commands/deleteExam";
+import { GetExamsQuery, GetExamsQueryC } from "./query/getExams";
+import { AddCourseCommand, AddCourseCommandC } from "./commands/addCourse";
+import { DeleteCourseCommand, DeleteCourseCommandC } from "./commands/deleteCourse";
+import { EditCourseCommand, EditCourseCommandC } from "./commands/editCourse";
+import { GetCoursesQuery, GetCoursesQueryC } from "./query/getCourses";
+import { AddSubjectCommand, AddSubjectCommandC } from "./commands/addSubject";
+import { EditSubjectCommand, EditSubjectCommandC } from "./commands/editSubject";
+import { DeleteSubjectCommand, DeleteSubjectCommandC } from "./commands/deleteSubject";
+import { GetSubjectsQuery, GetSubjectsQueryC } from "./query/getSubjects";
+import { AddQuestionCommand, AddQuestionCommandC } from "./commands/addQuestion";
+import { EditQuestionCommand, EditQuestionCommandC } from "./commands/editQuestion";
+import { DeleteQuestionCommand, DeleteQuestionCommandC } from "./commands/deleteQuestion";
+import { GetQuestionsQuery, GetQuestionsQueryC } from "./query/getQuestions";
+import { QueueRepository } from "../../domain/queue/repository";
+import { AddQuestionFileCommand, AddQuestionFileCommandC } from "./commands/addQuestionFile";
+import { GetExamsAnalytics, GetExamsAnalyticsC } from "./query/getExamAnalytics";
+import { TestRepository } from "../../domain/tests/repository";
+import { TagQuestionCommand, TagQuestionCommandC } from "./commands/tagQuestion";
+import { ReportQuestionCommand, ReportQuestionCommandC } from "./commands/reportQuestion";
+import { GetExamsDetails, GetExamsDetailsC } from "./query/getExamDetails";
+import { AddExamDiscountCommand, AddExamDiscountCommandC } from "./commands/addExamDiscount";
+import { GetTaggedQuestionsQuery, GetTaggedQuestionsQueryC } from "./query/getTaggedQuestion";
+import { GetReportedQuestionsQuery, GetReportedQuestionsQueryC } from "./query/getReportedQuestions";
+import { GetQuestionByIdQuery, GetQuestionByIdQueryC } from "./query/getQuestionById";
+import { UploadImageCommand, UploadImageCommandC } from "./commands/uploadImage";
+import { GetQuestionBatch, GetQuestionBatchC } from "./query/getBatchSatus";
+import { DeleteDiscountCommandC } from "./commands/deleteDiscount";
+import { UnTagQuestionCommand, UnTagQuestionCommandC } from "./commands/unTagQuestion";
 
 export class Commands {
     addExam: AddExamCommand;
@@ -53,6 +54,8 @@ export class Commands {
     editQuestion: EditQuestionCommand
 
     tagQuestion: TagQuestionCommand
+    unTagQuestion: UnTagQuestionCommand
+
     reportQuestion: ReportQuestionCommand
 
     addExamDiscount: AddExamDiscountCommand
@@ -79,6 +82,7 @@ export class Commands {
         this.editQuestion = new EditQuestionCommandC(examRepository)
 
         this.tagQuestion = new TagQuestionCommandC(examRepository)
+        this.unTagQuestion = new UnTagQuestionCommandC(examRepository)
         this.reportQuestion = new ReportQuestionCommandC(examRepository)
 
         this.addExamDiscount = new AddExamDiscountCommandC(examRepository)

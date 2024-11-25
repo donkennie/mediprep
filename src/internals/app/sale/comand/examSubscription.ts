@@ -1,7 +1,8 @@
-import {SaleItem} from "../../../domain/sales/sale";
-import {UserExamAccessRepository} from "../../../domain/sales/repository";
-import {UserRepository} from "../../../domain/users/repository";
-import {BadRequestError} from "../../../../pkg/errors/customError";
+import { SaleItem } from "../../../domain/sales/sale";
+import { UserExamAccessRepository } from "../../../domain/sales/repository";
+import { UserRepository } from "../../../domain/users/repository";
+import { BadRequestError } from "../../../../pkg/errors/customError";
+import { CartRepository } from "../../../domain/carts/repository";
 
 export interface ExamSubscribe {
     Handle: (reference: string) => Promise<void>;
@@ -11,10 +12,14 @@ export interface ExamSubscribe {
 export class ExamSubscribeC implements ExamSubscribe {
     salesRepository: UserExamAccessRepository
     userRepository: UserRepository
+    cartRepository: CartRepository
 
-    constructor(salesRepository: UserExamAccessRepository, userRepository: UserRepository) {
+
+    constructor(salesRepository: UserExamAccessRepository, userRepository: UserRepository, cartRepository: CartRepository) {
         this.salesRepository = salesRepository
         this.userRepository = userRepository
+        this.cartRepository = cartRepository
+
     }
 
     HandleWithoutPay = async (item: SaleItem, userID: string): Promise<void> => {
@@ -51,6 +56,8 @@ export class ExamSubscribeC implements ExamSubscribe {
                 id: sale.id,
                 status: "success"
             })
+
+            await this.cartRepository.ClearCart(sale.userId)
 
         } catch (error) {
             throw error

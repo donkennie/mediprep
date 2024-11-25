@@ -10,7 +10,7 @@ import {
     QuestionWithReason,
     Subject
 } from "./exam";
-import {PaginationFilter, PaginationMetaData} from "../../../pkg/types/pagination";
+import { PaginationFilter, PaginationMetaData } from "../../../pkg/types/pagination";
 
 export interface ExamRepository {
     AddExam: (exam: Exam) => Promise<void>
@@ -59,5 +59,6 @@ export interface ExamRepository {
     }>
     GetQuestionBatchByID: (id: string) => Promise<QuestionBatch>
     TagQuestion: (userId: string, questionId: string) => Promise<void>
+    UnTagQuestion: (userId: string, questionId: string) => Promise<void>
     ReportQuestion: (userId: string, questionId: string, reason: string) => Promise<void>
 }
