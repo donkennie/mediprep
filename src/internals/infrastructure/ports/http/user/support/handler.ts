@@ -36,7 +36,7 @@ export class UserSupportHandler {
         const userID = req.userD?.id
         const user = await this.userServices.queries.getUserDetails.handle(userID as string)
         const emailParams: Email = {
-            mailTo: ["owo.pre.eno@gmail.com"],
+            mailTo: [this.environmentVariables.adminEmail],
             subject: `support request from : ${user.email}`,
             plainText: req.body.message,
         }
