@@ -7,6 +7,7 @@ import {SalesServices} from "./sale/sale";
 import {UserExamAccessService} from "./examAccess/examAccess";
 import {TestsServices} from "./test/test";
 import {CartServices} from "./cart/cart";
+import {Environment} from "../../pkg/configs/env";
 
 export class Services {
     AdminServices: AdminServices;
@@ -18,10 +19,11 @@ export class Services {
     testServices: TestsServices
     CartServices: CartServices
 
-    constructor(adapter: Adapter) {
+    constructor(adapter: Adapter,environmentVariables: Environment) {
         this.AdminServices = new AdminServices(
             adapter.AdminRepository,
-            adapter.QueueRepository
+            adapter.QueueRepository,
+            environmentVariables
         );
         this.EmailServices = new EmailServices(adapter.EmailRepository);
         this.ExamServices = new ExamServices(adapter.ExamRepository, adapter.StorageRepository, adapter.QueueRepository, adapter.testRepositories)

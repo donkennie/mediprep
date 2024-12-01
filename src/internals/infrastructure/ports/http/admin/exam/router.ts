@@ -1,14 +1,16 @@
-import { ExamServices } from "../../../../../app/exam/exam";
-import { AdminServices } from "../../../../../app/admin/admin";
-import { Router } from "express";
-import { MulterConfig } from "../../../../../../pkg/utils/multer";
-import { ExamHandler } from "./handler";
+import {ExamServices} from "../../../../../app/exam/exam";
+import {AdminServices} from "../../../../../app/admin/admin";
+import {Router} from "express";
+import {MulterConfig} from "../../../../../../pkg/utils/multer";
+import {ExamHandler} from "./handler";
 import CheckPermission from "../../../../../../pkg/middleware/checkPermission";
+import checkPermission from "../../../../../../pkg/middleware/checkPermission";
 import ValidationMiddleware from "../../../../../../pkg/middleware/validation";
-import { Multer } from 'multer';
+import {Multer} from 'multer';
 import {
     addExamDiscountSchema,
     addExamSchema,
+    assignQuestionSchema,
     courseIdSchema,
     courseSchema,
     discountIdSchema,
@@ -140,6 +142,12 @@ export class ExamRouter {
             CheckPermission("read_exam"),
             ValidationMiddleware(questionIdSchema, "params"),
             this.handler.getQuestionByIdHandler
+        )
+
+        this.router.route('/question/assign').post(
+            checkPermission("edit_admin"),
+            ValidationMiddleware(assignQuestionSchema, "body"),
+            this.handler.assignQuestions
         )
 
 

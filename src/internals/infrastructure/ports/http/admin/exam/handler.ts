@@ -14,6 +14,7 @@ import { SuccessResponse } from "../../../../../../pkg/responses/success";
 import { BadRequestError } from "../../../../../../pkg/errors/customError";
 import { PaginationFilter } from "../../../../../../pkg/types/pagination";
 import { parseRangeList } from "../../../../../../pkg/utils/parseRange";
+import {Email} from "../../../../../domain/notification/email";
 
 export class ExamHandler {
     examServices: ExamServices;
@@ -290,4 +291,9 @@ export class ExamHandler {
         const question = await this.examServices.queries.getQuestionById.handle(req.params.questionId)
         new SuccessResponse(res, { question }).send()
     }
+
+    assignQuestions = async (req: Request, res: Response) => {
+        await this.adminServices.commands.assignQuestions.Handle(req.body.adminId,req.body.range,req.body.examId)
+        new SuccessResponse(res, {message: "successful"}).send();
+    };
 }

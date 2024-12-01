@@ -85,7 +85,7 @@ const main = async () => {
 
 
     const adapter: Adapter = new Adapter(dbClient, azureBlobClient, kafka, environmentVariables, redisClient,paystack,stripe);
-    const services: Services = new Services(adapter);
+    const services: Services = new Services(adapter,environmentVariables);
     const httpServer: Server = new Server(adapter,services, environmentVariables);
     const kafkaQueue: KafkaQueue = new KafkaQueue(
         kafka,

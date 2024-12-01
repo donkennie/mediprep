@@ -44,6 +44,13 @@ const rangeSchema = z.string().optional().refine((value) => {
 }, {
     message: "Invalid range format. Use format like '1-100,213,2550-300'"
 });
+const rangeSchemaRequired = z.string().refine((value) => {
+    if (value === undefined || value === '') return true;
+    const rangeRegex = /^(\d+-\d+|\d+)(,(\d+-\d+|\d+))*$/;
+    return rangeRegex.test(value);
+}, {
+    message: "Invalid range format. Use format like '1-100,213,2550-300'"
+});
 
 export const getCommandFilterSchema = z.object({
     limit: z.string().optional(),
@@ -129,3 +136,9 @@ export const paginationSchema = z.object({
     page: z.string().optional(),
     questionStatus: z.enum(["correct", "unanswered", "wrong"]).optional()
 });
+
+export const assignQuestionSchema= z.object({
+    adminId: uuidSchema,
+    range: rangeSchemaRequired,
+    examId: uuidSchema.optional()
+})
