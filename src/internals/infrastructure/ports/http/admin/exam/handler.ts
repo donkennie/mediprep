@@ -13,6 +13,7 @@ import {
 import { SuccessResponse } from "../../../../../../pkg/responses/success";
 import { BadRequestError } from "../../../../../../pkg/errors/customError";
 import { PaginationFilter } from "../../../../../../pkg/types/pagination";
+import { parseRangeList } from "../../../../../../pkg/utils/parseRange";
 
 export class ExamHandler {
     examServices: ExamServices;
@@ -244,11 +245,13 @@ export class ExamHandler {
         new SuccessResponse(res, { message: `questions added by file upload processing` }).send()
     }
     getQuestionsHandler = async (req: Request, res: Response) => {
-        const { limit, page, subjectId } = req.query;
+        const { limit, page, subjectId, examId, range } = req.query;
         const filter: PaginationFilter = {
             limit: Number(limit) || 100,
             page: Number(page) || 1,
-            subjectId: subjectId as string | undefined
+            subjectId: subjectId as string | undefined,
+            examId: examId as string | undefined,
+            range: range ? parseRangeList(range as string) : []
         };
 
         const { questions, metadata } = await this.examServices.queries.getQuestions.handle(filter);

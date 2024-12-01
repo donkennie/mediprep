@@ -1,4 +1,4 @@
-import {TestType} from "../../internals/domain/tests/test";
+import { TestType } from "../../internals/domain/tests/test";
 
 export type PaginationFilter = {
     limit: number;
@@ -21,6 +21,7 @@ export type PaginationFilter = {
     random?: boolean;
     testType?: TestType;
     questionStatus?: "unanswered" | "correct" | "wrong"
+    range?: number[];
 };
 
 export type PaginationMetaData = {

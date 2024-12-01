@@ -1,4 +1,4 @@
-function parseRangeList(rangeString: string): number[] {
+export function parseRangeList(rangeString: string): number[] {
     // Split the input string by commas
     const parts = rangeString.split(',');
 

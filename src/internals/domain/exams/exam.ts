@@ -53,6 +53,8 @@ export type QuestionType = "single_choice" | "multiple_choice" | "fill_in_the_bl
 export type QuestionStatus = "correct" | "unanswered" | "wrong";
 export type Question = {
     id?: string;
+    questionNumber?: number;
+    examQuestionNumber?: number;
     type: QuestionType;
     question: string;
     explanation: string;

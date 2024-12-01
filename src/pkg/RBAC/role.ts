@@ -5,7 +5,7 @@ export type AdminRole = {
 
 export const AdminRoles: AdminRole[] = [
     {
-        name: "admin",
+        name: "super-admin",
         permissions: [
             "create_user",
             "read_user",
@@ -20,6 +20,20 @@ export const AdminRoles: AdminRole[] = [
             "read_admin",
             "edit_admin",
             "delete_admin",
+        ],
+    },
+    {
+        name: "admin",
+        permissions: [
+            "create_user",
+            "read_user",
+            "edit_user",
+            "create_exam",
+            "read_exam",
+            "edit_exam",
+            "delete_exam",
+            "read_sales",
+            "create_sales",
         ],
     },
     // Able to create, update, and delete exams

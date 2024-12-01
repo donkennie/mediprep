@@ -12,7 +12,7 @@ export const adminSeed = async (pgClient: pg.PoolClient, env: Environment) => {
             name: env.adminName,
             email: env.adminEmail,
             password: password,
-            roles: ["admin"],
+            roles: ["super-admin"],
         })
         console.log("Admin Seed done");
     }catch (error) {

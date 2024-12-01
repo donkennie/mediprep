@@ -1,4 +1,4 @@
-import {z} from "zod";
+import { z } from "zod";
 
 export const passwordRegex =
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
@@ -9,6 +9,7 @@ enum Roles {
     HR = "hr",
     EXAMINER = "examiner",
     ADMIN = "admin",
+    SUPERADMIN = "super-admin"
 }
 
 const rolesEnumSchema = z.nativeEnum(Roles);

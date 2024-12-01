@@ -62,6 +62,8 @@ export class Environment {
     adminEmail: string
     adminPassword: string
 
+    questionViewURL: string
+
     constructor() {
         this.pgDBUsername = this.getEnvAsString("PG_DB_USERNAME", "postgres");
         this.pgDBPassword = this.getEnvAsString("PG_DB_PASSWORD", "password");
@@ -135,6 +137,8 @@ export class Environment {
         this.adminName = this.getEnvORError("ADMIN_NAME")
         this.adminEmail = this.getEnvORError("ADMIN_EMAIL")
         this.adminPassword = this.getEnvORError("ADMIN_PASSWORD")
+
+        this.questionViewURL =this.getEnvORError("QUESTION_VIEW_URL")
     }
 
     getEnvORError = (key: string): string => {

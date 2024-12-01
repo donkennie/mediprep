@@ -8,7 +8,8 @@ import {
     timestamp,
     uuid,
     varchar,
-    doublePrecision
+    doublePrecision,
+    serial
 } from 'drizzle-orm/pg-core';
 import { InferSelectModel, relations } from "drizzle-orm";
 import { Admins } from "./admins";
@@ -127,6 +128,8 @@ export type Subject = (InferSelectModel<typeof Subjects> & {
 
 export const Questions = pgTable('question', {
     id: uuid('id').defaultRandom(),
+    questionNumber: serial('question_number').notNull(),
+    examQuestionNumber: integer('exam_question_number').notNull(),
     type: varchar('type', { length: 32 }).notNull(),
     question: text('question').notNull(),
     explanation: text('explanation'),

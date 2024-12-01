@@ -1,10 +1,10 @@
-import {Consumer, Kafka} from "kafkajs";
-import {Environment} from "../../../../../pkg/configs/env";
+import { Consumer, Kafka } from "kafkajs";
+import { Environment } from "../../../../../pkg/configs/env";
 import Logger from "../../../../../pkg/utils/logger";
 import csv from "csv-parser";
-import {ExamQuestionFile, Option} from "../../../../domain/exams/exam";
-import {BlobDeleteOptions, BlobServiceClient, ContainerClient} from "@azure/storage-blob";
-import {ExamServices} from "../../../../app/exam/exam";
+import { ExamQuestionFile, Option } from "../../../../domain/exams/exam";
+import { BlobDeleteOptions, BlobServiceClient, ContainerClient } from "@azure/storage-blob";
+import { ExamServices } from "../../../../app/exam/exam";
 
 export class ExamQuestionFileConsumer {
     environmentVariable: Environment;
@@ -30,14 +30,65 @@ export class ExamQuestionFileConsumer {
         await this.consumer.connect();
         await this.consumer.subscribe({
             topic: this.environmentVariable.kafkaExamQuestionFileTopic,
-            fromBeginning: true,
+            fromBeginning: false,
         });
 
         await this.consumer.run({
-            eachMessage: async ({topic, partition, message}) => {
-                const data: ExamQuestionFile = JSON.parse(String(message.value)) as ExamQuestionFile;
-                await this.handle(data);
+            eachMessage: async ({ topic, partition, message }) => {
+                // Create a unique transaction ID for logging and tracking
+                const transactionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+                try {
+                    const data: ExamQuestionFile = JSON.parse(String(message.value)) as ExamQuestionFile;
+
+                    Logger.info(`Starting processing for batch ${data.batchId}`, {
+                        transactionId,
+                        batchId: data.batchId
+                    });
+
+                    // Process the message
+                    await this.handle(data);
+
+                    // Log successful processing
+                    Logger.info(`Successfully processed batch ${data.batchId}`, {
+                        transactionId,
+                        batchId: data.batchId
+                    });
+                } catch (error) {
+                    // Log the error without stopping consumption
+                    Logger.error(`Failed to process message`, {
+                        transactionId,
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        errorStack: error instanceof Error ? error.stack : null,
+                    });
+
+                    // Attempt to update batch status to failed
+                    try {
+                        const data: ExamQuestionFile = JSON.parse(String(message.value)) as ExamQuestionFile;
+                        await this.examServices.examRepository.UpdateQuestionBatchStatus(data.batchId, 'failed');
+                    } catch (statusUpdateError) {
+                        Logger.error(`Failed to update batch status`, {
+                            transactionId,
+                            error: statusUpdateError instanceof Error ? statusUpdateError.message : 'Unknown error'
+                        });
+                    }
+
+                    // Continue processing next messages
+                    // Do not throw or rethrow the error
+                }
             },
+        });
+
+        // Handle consumer errors to prevent complete stoppage
+        this.consumer.on('consumer.crash', async (error) => {
+            Logger.error('Consumer crashed, attempting to restart', error);
+            try {
+                await this.consumer.disconnect();
+                // Reconnect or restart the consumer
+                await this.run();
+            } catch (restartError) {
+                Logger.error('Failed to restart consumer', restartError);
+            }
         });
     };
 
@@ -49,6 +100,8 @@ export class ExamQuestionFileConsumer {
 
             const rl = downloadResponse.readableStreamBody?.pipe(csv());
             if (!rl) {
+                console.log("hi");
+
                 throw new Error()
             }
 
@@ -86,7 +139,7 @@ export class ExamQuestionFileConsumer {
                         questionBatchId: data.batchId
                     })
                 } catch (error) {
-                    console.log(error)
+                    console.log({ error, type: 1 })
                     continue
                 }
             }
@@ -105,7 +158,7 @@ export class ExamQuestionFileConsumer {
             // }
             // await blobClient.deleteIfExists(options)
             Logger.error("Failed to Process Questions");
-            console.log(error);
+            console.log({ error });
         }
     };
 

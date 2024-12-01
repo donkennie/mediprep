@@ -13,3 +13,5 @@ dist
 /init.sql/
 /view/paystack.html
 /view/stripe.html
+./src/test.ts
+/src/test.ts

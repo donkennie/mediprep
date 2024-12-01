@@ -1,5 +1,5 @@
-import {z} from "zod";
-import {uuidSchema} from "./admin";
+import { z } from "zod";
+import { uuidSchema } from "./admin";
 
 export const addExamSchema = z.object({
     name: z.string(),
@@ -37,6 +37,14 @@ export const userExamIdSchema = z.object({
     examId: uuidSchema
 })
 
+const rangeSchema = z.string().optional().refine((value) => {
+    if (value === undefined || value === '') return true;
+    const rangeRegex = /^(\d+-\d+|\d+)(,(\d+-\d+|\d+))*$/;
+    return rangeRegex.test(value);
+}, {
+    message: "Invalid range format. Use format like '1-100,213,2550-300'"
+});
+
 export const getCommandFilterSchema = z.object({
     limit: z.string().optional(),
     page: z.string().optional(),
@@ -52,7 +60,8 @@ export const getCommandFilterSchema = z.object({
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     testType: z.enum(["subjectBased", "courseBased", "mock"]).optional(),
-    status: z.enum(["inProgress", "complete", "paused"]).optional()
+    status: z.enum(["inProgress", "complete", "paused"]).optional(),
+    range: rangeSchema
 });
 
 
@@ -118,5 +127,5 @@ export const questionIdSchema = z.object({
 export const paginationSchema = z.object({
     limit: z.string().optional(),
     page: z.string().optional(),
-    questionStatus: z.enum([ "correct", "unanswered", "wrong"]).optional()
+    questionStatus: z.enum(["correct", "unanswered", "wrong"]).optional()
 });

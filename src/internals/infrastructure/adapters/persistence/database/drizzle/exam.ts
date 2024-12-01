@@ -29,7 +29,7 @@ import {
     UserTagQuestionRecords
 } from "../../../../../../../stack/drizzle/schema/exams"
 import { PaginationFilter, PaginationMetaData } from "../../../../../../pkg/types/pagination";
-import { and, count, eq, ilike, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, sql } from "drizzle-orm";
 import { BadRequestError } from "../../../../../../pkg/errors/customError";
 import { PoolClient } from "pg";
 import { UserExamAccess } from "../../../../../../../stack/drizzle/schema/users";
@@ -185,7 +185,28 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     if (!subject) {
                         throw new BadRequestError(`subject with id ${questionParams.subjectId} does not exist`)
                     }
+                    const lastQuestion = await this.db.query.Questions.findFirst({
+                        where: eq(Questions.examId, subject.examId as string),
+                        orderBy: sql`exam_question_number DESC`,
+                        columns: {
+                            examQuestionNumber: true
+                        }
+                    })
+                    // const lastQuestion = await this.db
+                    //     .select({ examQuestionNumber: Questions.examQuestionNumber })
+                    //     .from(Questions)
+                    //     .where(eq(Exams.id, subject.course?.exam?.id as unknown as string))
+                    //     .orderBy(sql`exam_question_number DESC`)
+                    //     .limit(1)
+                    //     .execute();
+                    console.log(lastQuestion);
+
+                    const startingIdentifier = lastQuestion
+                        ? lastQuestion.examQuestionNumber + 1
+                        : 1;
+
                     const newQuestionResults = await tx.insert(Questions).values({
+                        examQuestionNumber: startingIdentifier,
                         type: questionParams.type,
                         question: questionParams.question,
                         explanation: questionParams.explanation,
@@ -582,6 +603,11 @@ export class ExamRepositoryDrizzle implements ExamRepository {
 
             }
 
+            if (filter.range && filter.range.length > 0) {
+                (filter.examId || filter.examId != undefined) ? filters.push(inArray(Questions.examQuestionNumber, filter.range)) : filters.push(inArray(Questions.questionNumber, filter.range));
+            }
+
+
             if (filter.free || filter.free != undefined) {
                 filters.push(eq(Questions.free, filter.free as boolean));
             }
@@ -605,7 +631,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     options: true
                 },
                 orderBy: filter.random ? sql`RANDOM
-                ()` : undefined,
+                ()` : sql`question_number ASC`,
                 limit: filter.limit,
                 offset: (filter.page - 1) * filter.limit,
             })
@@ -614,6 +640,8 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     questions: questions.map((question: any): Question => {
                         return {
                             id: question.id as string,
+                            questionNumber: question.questionNumber,
+                            examQuestionNumber: question.examQuestionNumber,
                             type: question.type as QuestionType,
                             explanation: question.explanation as string,
                             question: question.question as string,
@@ -808,6 +836,8 @@ export class ExamRepositoryDrizzle implements ExamRepository {
             }
             return {
                 id: questionResult.id as string,
+                questionNumber: questionResult.questionNumber,
+                examQuestionNumber: questionResult.examQuestionNumber,
                 type: questionResult.type as QuestionType,
                 explanation: questionResult.explanation as string,
                 question: questionResult.question as string,
@@ -989,6 +1019,8 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     questions: reportedQuestions.map((question: any): QuestionWithReason => {
                         return {
                             id: question.question.id as string,
+                            // questionNumber: question.questionNumber,
+                            // examQuestionNumber: question.examQuestionNumber,
                             type: question.question.type as QuestionType,
                             reason: question.reason,
                             courseName: question.question.course.name,
