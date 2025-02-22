@@ -67,15 +67,16 @@ const main = async () => {
         url: environmentVariables.redisURL,
     })
     await redisClient.on('error', err => {
-        console.log("redis error")
+        console.log("redis error", err)
         process.exit(1)
     }).connect();
 
     const subRedisClient: ReturnType<typeof createClient> = createClient({
         url: environmentVariables.redisURL,
+        
     })
     await subRedisClient.on('error', err => {
-        console.log("redis error")
+        console.log("redis error from here")
         process.exit(1)
     }).connect();
 
@@ -97,7 +98,6 @@ const main = async () => {
         services,
         subRedisClient,
     )
-
 
     httpServer.listen();
     await kafkaQueue.listen();

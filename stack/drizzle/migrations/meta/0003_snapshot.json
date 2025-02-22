@@ -1,6 +1,6 @@
 {
-  "id": "032edbec-f42f-4192-a84e-fd2fedabec67",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "a339f862-6d03-4213-a3fb-525c6cace579",
+  "prevId": "55833475-86b0-438f-b581-c4dd6f33f65f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1582,7 +1582,7 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
-          "default": "'2025-02-08 03:40:01.482'"
+          "default": "'2025-02-08 04:16:48.940'"
         },
         "time_left": {
           "name": "time_left",

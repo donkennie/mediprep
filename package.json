@@ -10,7 +10,6 @@
     "migrate-redo": "node-pg-migrate -m ./stack/migrations redo",
     "drizzle-generate": "drizzle-kit --config=stack/drizzle/drizzle.config.ts generate",
     "drizzle-migrate": "drizzle-kit --config=stack/drizzle/drizzle.config.ts migrate",
-
     "dev": "ts-node-dev --respawn --rs --files src/index.ts",
     "build": "tsc -p .",
     "drizzle-seed": "npm run build && node dist/stack/drizzle/seeds",
@@ -32,7 +31,7 @@
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.4.7",
     "drizzle-orm": "^0.31.2",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",

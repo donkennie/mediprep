@@ -66,7 +66,7 @@ export class Environment {
 
     constructor() {
         this.pgDBUsername = this.getEnvAsString("PG_DB_USERNAME", "postgres");
-        this.pgDBPassword = this.getEnvAsString("PG_DB_PASSWORD", "password");
+        this.pgDBPassword = this.getEnvAsString("PG_DB_PASSWORD", "donkennie");
         this.pgDBHost = this.getEnvAsString("PG_DB_HOST", "127.0.0.1");
         this.pgDBPort = this.getEnvAsInt("PG_DB_PORT", 5432);
         this.pgDBDatabase = this.getEnvORError("PG_DB_NAME");
@@ -155,6 +155,8 @@ export class Environment {
         if (value) {
             return value;
         }
+
+        console.warn(`Environment variable ${key} not set. Using fallback: ${fallback}`);
         return fallback;
     };
 
@@ -163,6 +165,8 @@ export class Environment {
         if (value) {
             return value;
         }
+
+         console.warn(`Environment variable ${key} is invalid or not set. Using fallback: ${fallback}`);
         return fallback;
     };
 
