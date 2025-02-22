@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1738982401633,
-      "tag": "0000_curved_taskmaster",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1738982528688,
-      "tag": "0001_absurd_hercules",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1738984038629,
-      "tag": "0002_melodic_ben_parker",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1738984608996,
-      "tag": "0003_magical_supreme_intelligence",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1738985460559,
-      "tag": "0004_empty_black_bird",
+      "when": 1740261861304,
+      "tag": "0000_friendly_lord_hawal",
       "breakpoints": true
     }
   ]
