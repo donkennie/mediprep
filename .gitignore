@@ -10,7 +10,7 @@ stack/terraform/azure/.terraform.lock.hcl
 /view/
 ./dist
 dist
-# /init.sql/
+/init.sql/
 /view/paystack.html
 /view/stripe.html
 ./src/test.ts
