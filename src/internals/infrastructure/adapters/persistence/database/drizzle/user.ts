@@ -111,13 +111,11 @@ export class UserRepositoryDrizzle implements UserRepository {
 
     getUserReferrals = async (userId: string): Promise<any[]> => {
         try {
-            console.log(userId)
+
           const referrals = await this.db.query.Referrals.findMany({
             where: eq(Referrals.referrerId, userId),
             orderBy: desc(Referrals.createdAt)
           });
-
-          console.log('Referrals:', referrals);
           
           const referralDetails = await Promise.all(
             referrals.map(async (referral) => {
@@ -132,8 +130,6 @@ export class UserRepositoryDrizzle implements UserRepository {
                   verified: true
                 }
               });
-
-              console.log('Referred User:', referredUser);
               
               return {
                 ...referral,
