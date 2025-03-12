@@ -190,7 +190,7 @@ CREATE TABLE "tests" (
 	"subject_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"course_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"exam_id" uuid NOT NULL,
-	"end_Time" timestamp DEFAULT '2025-03-12 17:33:15.425',
+	"end_Time" timestamp DEFAULT '2025-03-12 22:14:00.701',
 	"time_left" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
