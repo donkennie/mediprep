@@ -6,8 +6,8 @@ import { PoolClient } from "pg";
 import * as schema from "../../../../../../../stack/drizzle/schema/users"
 import * as schema2 from "../../../../../../../stack/drizzle/schema/exams"
 import * as schema1 from "../../../../../../../stack/drizzle/schema/sales"
-import { UserExamAccess, Users } from "../../../../../../../stack/drizzle/schema/users"
-import { and, count, eq, gte, ilike, lte, ne } from "drizzle-orm";
+import { Referrals, UserExamAccess, Users } from "../../../../../../../stack/drizzle/schema/users"
+import { and, count, desc, eq, gt, gte, ilike, lte, ne } from "drizzle-orm";
 import { BadRequestError } from "../../../../../../pkg/errors/customError";
 import { SaleItems, Sales } from "../../../../../../../stack/drizzle/schema/sales";
 import { Tests } from "../../../../../../../stack/drizzle/schema/test";
@@ -39,6 +39,7 @@ export class UserRepositoryDrizzle implements UserRepository {
                         country: user.country as string,
                         profession: user.profession as string,
                         blacklisted: user.blacklisted,
+                        referralCode: UserRepositoryDrizzle.generateReferralCode(),
                         verified: user.verified ? user.verified : false
                     }).returning()
 
@@ -56,6 +57,8 @@ export class UserRepositoryDrizzle implements UserRepository {
                         verified: result[0].verified as boolean,
                         profession: result[0].profession as string,
                         blacklisted: result[0].blacklisted,
+                        referralCode: result[0].referralCode as string,
+
                         createdAt: result[0].createdAt as Date,
                         updatedAt: result[0].updatedAt as Date
                     }
@@ -106,6 +109,68 @@ export class UserRepositoryDrizzle implements UserRepository {
         }
     }
 
+    getUserReferrals = async (userId: string): Promise<any[]> => {
+        try {
+            
+          const referrals = await this.db.query.Referrals.findMany({
+            where: eq(Referrals.referrerId, userId),
+            orderBy: desc(Referrals.createdAt)
+          });
+          
+          const referralDetails = await Promise.all(
+            referrals.map(async (referral) => {
+              const referredUser = await this.db.query.Users.findFirst({
+                where: eq(Users.id, referral.referredId),
+                columns: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  createdAt: true,
+                  verified: true
+                }
+              });
+              
+              return {
+                ...referral,
+                referredUser
+              };
+            })
+          );
+          
+          return referralDetails;
+        } catch (error) {
+          throw error;
+        }
+      };
+
+    applyReferralCode = async (newUserId: string, referralCode: string): Promise<boolean> => {
+        try {
+
+          const referrer = await this.db.query.Referrals.findFirst({
+            where: eq(Referrals.referralCode, referralCode)
+          });
+          
+          if (!referrer) {
+            throw new BadRequestError(`Invalid referral code: ${referralCode}`);
+          }
+          
+          const user = await this.db.update(Users)
+            .set({ referredBy: referrer.id })
+            .where(eq(Users.id, newUserId));
+
+          await this.db.insert(schema.Referrals).values({
+            referrerId: referrer.referrerId,
+            referredId: newUserId,
+            referralCode: referralCode
+          });
+          
+          return true;
+        } catch (error) {
+          throw error;
+        }
+      };
+
     editUser = async (id: string, userParams: EditUser): Promise<void> => {
         try {
             const updatedUser = await this.db.update(Users).set(userParams).where(eq(Users.id, id)).returning({ id: Users.id })
@@ -116,6 +181,8 @@ export class UserRepositoryDrizzle implements UserRepository {
             throw error
         }
     }
+
+
 
     getUserDetails = async (id: string): Promise<User> => {
         try {
@@ -290,7 +357,7 @@ export class UserRepositoryDrizzle implements UserRepository {
                             firstName: user.firstName as string,
                             lastName: user.lastName as string,
                             email: user.email as string,
-                            password: user.password as string,
+                            // password: user.password as string,
                             country: user.country as string,
                             profession: user.profession as string,
                             blacklisted: user.blacklisted,
@@ -333,13 +400,48 @@ export class UserRepositoryDrizzle implements UserRepository {
         }
     }
 
+    getAllActiveSubscribers = async (): Promise<{ userId: string; expiryDate: Date }[]> => {
+        try {
+          const currentDate = new Date();
+          
+          const activeSubscriptions = await this.db.query.UserExamAccess.findMany({
+            where: (
+              gt(UserExamAccess.expiryDate, currentDate)
+            ),
+          });
+          
+          if (!activeSubscriptions.length) {
+            return [];
+          }
+          
+          const userExpiryMap = new Map<string, Date>();
+
+            for (const sub of activeSubscriptions) {
+                const existingExpiry = userExpiryMap.get(sub.userId);
+                if (!existingExpiry || sub.expiryDate > existingExpiry) {
+                    userExpiryMap.set(sub.userId, sub.expiryDate);
+                }
+            }
+
+            // Convert map to array format
+            return Array.from(userExpiryMap, ([userId, expiryDate]) => ({
+                userId,
+                expiryDate,
+            }));
+
+        
+        } catch (error) {
+          throw error;
+        }
+      };
+    
     getUserExamAccess = async (examId: string, userId: string): Promise<UEA> => {
         try {
             const userExamAccess = await this.db.query.UserExamAccess.findFirst({
                 where: (and(eq(UserExamAccess.userId, userId), eq(UserExamAccess.examId, examId))),
             })
             if (!userExamAccess) {
-                throw new BadRequestError(`user does with id ${userId} does not have access to exam ${examId}`)
+                throw new BadRequestError(`user with id ${userId} does not have access to exam ${examId}`)
             }
             return {
                 userId: userExamAccess.userId,
@@ -350,5 +452,17 @@ export class UserRepositoryDrizzle implements UserRepository {
         } catch (error) {
             throw error
         }
+    }
+
+    private static generateReferralCode(): string {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+        let referralCode = '';
+        
+        for (let i = 0; i < 10; i++) {
+            const randomIndex = Math.floor(Math.random() * characters.length);
+            referralCode += characters.charAt(randomIndex);
+        }
+
+        return referralCode;
     }
 }

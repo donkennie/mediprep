@@ -13,6 +13,9 @@ export type User = {
     updatedAt?: Date;
     blacklisted?:boolean;
     examsBought?: number;
+    referralCode?: string;
+    referredBy?: string;
+    code?: string;
     testNo?:number;
     mockNo?: number
     exams?: Exam[];
@@ -33,4 +36,13 @@ export type UserExamAccess = {
     userId: string;
     expiryDate?: Date;
     exam?: Exam
+}
+
+export type Referral = {
+    id?: string;
+    referrerId: string;
+    referredId: string;
+    referralCode: string;
+    createdAt?: Date;
+    updatedAt?: Date;
 }

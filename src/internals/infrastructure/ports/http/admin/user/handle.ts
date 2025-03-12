@@ -28,6 +28,22 @@ export class UserHandler {
             );
 
         this.router
+            .route("/subs")
+            .get(
+                AuthorizeAdmin(adminServices.adminRepository),
+                CheckPermission("read_user"),
+                ValidationMiddleware(getCommandFilterSchema, "query"),
+                this.getSubscribersHandler
+            );
+
+        this.router 
+            .route("/referrals")
+            .get(
+                ValidationMiddleware(getCommandFilterSchema, "query"),
+                this.getUserReferrals
+            )
+
+        this.router
             .route("/:userId")
             .get(
                 AuthorizeAdmin(adminServices.adminRepository),
@@ -88,5 +104,15 @@ export class UserHandler {
             blacklisted: req.body.blacklist
         });
         new SuccessResponse(res, {user}).send();
+    }
+
+    getSubscribersHandler = async (req: Request, res: Response) => {
+        const user = await this.userServices.queries.getActiveSubscribers.handle();
+        new SuccessResponse(res, {user}).send();
+    }
+
+    getUserReferrals = async (req: Request, res: Response) => {
+        const referrals = await this.userServices.queries.getUserReferrals.handle(req.params.userId);
+        new SuccessResponse(res, referrals).send();
     }
 }

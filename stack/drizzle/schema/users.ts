@@ -1,6 +1,6 @@
 import {boolean, pgTable, primaryKey, timestamp, uuid, varchar} from "drizzle-orm/pg-core";
 import {Exams, UserQuestionRecords} from "./exams";
-import {relations} from "drizzle-orm";
+import {relations, AnyColumn } from "drizzle-orm";
 import {Sales} from "./sales";
 import {Tests} from "./test";
 
@@ -14,6 +14,8 @@ export const Users = pgTable("user", {
     country: varchar('country', {length: 64}),
     verified: boolean('verified').default(false),
     blacklisted: boolean('black_listed').default(false).notNull(),
+    referralCode: varchar('referral_code', {length: 10}).unique(),
+    referredBy: uuid('referred_by'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 }, (t) => ({
@@ -39,10 +41,41 @@ export const userToExamRelations = relations(UserExamAccess, ({one}) => ({
     }),
 }));
 
+export const UsersRelations = relations(Users, ({ one, many }) => ({
+    referrer: one(Users, {
+        fields: [Users.referredBy],
+        references: [Users.id],
+    }),
+    referrals: many(Users),
+}));
+
+
 
 export const userExamRelations = relations(Users, ({many}) => ({
     userExamAccess: many(UserExamAccess),
     sales: many(Sales),
     questionRecords: many(UserQuestionRecords),
     tests: many(Tests)
+}));
+
+export const Referrals = pgTable("referral", {
+    id: uuid('id').defaultRandom(),
+    referrerId: uuid('referrer_id').notNull(),
+    referredId: uuid('referred_id').notNull().unique(),
+    referralCode: varchar("referral_code", { length: 10 }).unique().notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (t) => ({
+    pk: primaryKey({columns: [t.id]})
+}));
+
+export const ReferralsRelations = relations(Referrals, ({ one }) => ({
+    referrer: one(Users, {
+        fields: [Referrals.referrerId],
+        references: [Users.id],
+    }),
+    referred: one(Users, {
+        fields: [Referrals.referredId],
+        references: [Users.id],
+    })
 }));

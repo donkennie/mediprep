@@ -8,6 +8,8 @@ import {ResetPassword, ResetPasswordC} from "./command/resetPassword";
 import {GetUsersQuery, GetUsersQueryC} from "./query/getUsers";
 import {UpdateUserCommand, UpdateUserCommandC} from "./command/updateUser";
 import {GetUserDetailsQuery, GetUserDetailsQueryC} from "./query/getUserDetails";
+import {GetAllActiveSubscribersQuery, GetAllActiveSubscribersQueryC} from "./query/getActiveSubscribers";
+import {getUserReferralsQuery, getUserReferralsQueryC} from "./query/getUserReferrals";
 
 export class Commands {
     addUser: AddUserCommand
@@ -31,6 +33,8 @@ export class Queries {
     sendJWT: SendJWTQuery
     getUsers: GetUsersQuery
     getUserDetails: GetUserDetailsQuery
+    getActiveSubscribers: GetAllActiveSubscribersQuery
+    getUserReferrals: getUserReferralsQuery
 
     constructor(userRepository: UserRepository, emailQueueRepository: QueueRepository
     ) {
@@ -38,6 +42,8 @@ export class Queries {
         this.sendJWT = new SendJWTQueryC(userRepository, emailQueueRepository)
         this.getUsers = new GetUsersQueryC(userRepository)
         this.getUserDetails = new GetUserDetailsQueryC(userRepository)
+        this.getActiveSubscribers = new GetAllActiveSubscribersQueryC(userRepository)
+        this.getUserReferrals = new getUserReferralsQueryC(userRepository)
     }
 }
 

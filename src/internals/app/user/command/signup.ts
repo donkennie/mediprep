@@ -33,7 +33,9 @@ export class AddUserCommandC implements AddUserCommand {
             const userResult = await this.userRepository.addUser(user);
             const payload = { id: userResult.id };
             const token = signToken(payload,false)
-
+            if(userResult?.id && user.code){
+                await this.userRepository.applyReferralCode(userResult.id, user.code)
+            }
             // Send credentials to mail by publishing message to queue
             const email: Email = {
                 subject: "User Account Verification",

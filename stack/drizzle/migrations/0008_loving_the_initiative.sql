@@ -190,11 +190,23 @@ CREATE TABLE "tests" (
 	"subject_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"course_ids" uuid[] DEFAULT '{}'::uuid[] NOT NULL,
 	"exam_id" uuid NOT NULL,
-	"end_Time" timestamp DEFAULT '2025-02-22 23:04:21.241',
+	"end_Time" timestamp DEFAULT '2025-03-12 16:09:44.233',
 	"time_left" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
 	CONSTRAINT "tests_id_pk" PRIMARY KEY("id")
+);
+--> statement-breakpoint
+CREATE TABLE "referral" (
+	"id" uuid DEFAULT gen_random_uuid(),
+	"referrer_id" uuid NOT NULL,
+	"referred_id" uuid NOT NULL,
+	"referral_code" varchar(10) NOT NULL,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "referral_id_pk" PRIMARY KEY("id"),
+	CONSTRAINT "referral_referred_id_unique" UNIQUE("referred_id"),
+	CONSTRAINT "referral_referral_code_unique" UNIQUE("referral_code")
 );
 --> statement-breakpoint
 CREATE TABLE "user_exam_access" (
@@ -214,10 +226,13 @@ CREATE TABLE "user" (
 	"country" varchar(64),
 	"verified" boolean DEFAULT false,
 	"black_listed" boolean DEFAULT false NOT NULL,
+	"referral_code" varchar(10),
+	"referred_by" uuid,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
 	CONSTRAINT "user_id_pk" PRIMARY KEY("id"),
-	CONSTRAINT "user_email_unique" UNIQUE("email")
+	CONSTRAINT "user_email_unique" UNIQUE("email"),
+	CONSTRAINT "user_referral_code_unique" UNIQUE("referral_code")
 );
 --> statement-breakpoint
 ALTER TABLE "cart_items" ADD CONSTRAINT "cart_items_exam_id_exam_id_fk" FOREIGN KEY ("exam_id") REFERENCES "public"."exam"("id") ON DELETE cascade ON UPDATE cascade;--> statement-breakpoint
