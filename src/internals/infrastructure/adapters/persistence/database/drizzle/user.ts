@@ -111,11 +111,13 @@ export class UserRepositoryDrizzle implements UserRepository {
 
     getUserReferrals = async (userId: string): Promise<any[]> => {
         try {
-            
+            console.log(userId)
           const referrals = await this.db.query.Referrals.findMany({
             where: eq(Referrals.referrerId, userId),
             orderBy: desc(Referrals.createdAt)
           });
+
+          console.log('Referrals:', referrals);
           
           const referralDetails = await Promise.all(
             referrals.map(async (referral) => {
@@ -130,6 +132,8 @@ export class UserRepositoryDrizzle implements UserRepository {
                   verified: true
                 }
               });
+
+              console.log('Referred User:', referredUser);
               
               return {
                 ...referral,
@@ -147,7 +151,7 @@ export class UserRepositoryDrizzle implements UserRepository {
     applyReferralCode = async (newUserId: string, referralCode: string): Promise<boolean> => {
         try {
 
-          const referrer = await this.db.query.Referrals.findFirst({
+          const referrer = await this.db.query.Users.findFirst({
             where: eq(Referrals.referralCode, referralCode)
           });
           
@@ -159,12 +163,14 @@ export class UserRepositoryDrizzle implements UserRepository {
             .set({ referredBy: referrer.id })
             .where(eq(Users.id, newUserId));
 
-          await this.db.insert(schema.Referrals).values({
-            referrerId: referrer.referrerId,
-            referredId: newUserId,
-            referralCode: referralCode
-          });
-          
+            if(referrer?.id){
+                await this.db.insert(schema.Referrals).values({
+                   referrerId: referrer.id,
+                   referredId: newUserId,
+                   referralCode: referralCode
+                 });
+            }
+
           return true;
         } catch (error) {
           throw error;

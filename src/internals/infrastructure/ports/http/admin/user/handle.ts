@@ -37,7 +37,7 @@ export class UserHandler {
             );
 
         this.router 
-            .route("/referrals")
+            .route("/referrals/:userId")
             .get(
                 ValidationMiddleware(getCommandFilterSchema, "query"),
                 this.getUserReferrals

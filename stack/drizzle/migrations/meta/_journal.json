@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1741792420706,
-      "tag": "0000_wide_sentry",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1741797068639,
-      "tag": "0001_wakeful_thunderbolt_ross",
+      "when": 1741797195485,
+      "tag": "0000_broken_dragon_lord",
       "breakpoints": true
     }
   ]
