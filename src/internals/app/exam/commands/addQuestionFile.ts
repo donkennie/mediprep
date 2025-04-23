@@ -25,16 +25,7 @@ export class AddQuestionFileCommandC implements AddQuestionFileCommand {
 
     async Handle(id: string, file: Express.Multer.File): Promise<void> {
         try {
-            console.log(this.environmentVariable.azClientId)
-
             const examExist = await this.examRepository.GetExamById(id)
-
-            console.log("SECRET!!!", this.environmentVariable.azClientSecret)
-
-            console.log(this.environmentVariable.azTenantId)
-
-            console.log(this.environmentVariable.azSessionId)
-
 
             const {fileURL,blobName} = await this.storageRepository.upload(file, this.environmentVariable.azExamQuestionFileContainer, examExist.id as string,)
 
