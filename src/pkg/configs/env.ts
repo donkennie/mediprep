@@ -81,8 +81,8 @@ export class Environment {
         this.jwtExpires = this.getEnvAsString("JWT_EXPIRES", "7d");
 
         this.nodeENV = this.getEnvAsString("NODE_ENV", "development");
-        this.port = this.getEnvAsInt("PORT", 5000);
-        this.url = this.getEnvAsString("URL", "http://localhost:5000");
+        this.port = this.getEnvAsInt("PORT", 5001);
+        this.url = this.getEnvAsString("URL", "http://localhost:5001");
         this.verificationURL = this.getEnvAsString("VERIFICATION_URL", "http://localhost:3000/verified");
         this.apiVersion = this.getEnvAsString("API_VERSION", "v1");
 
