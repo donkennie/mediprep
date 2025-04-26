@@ -16,3 +16,4 @@ dist
 /view/stripe.html
 ./src/test.ts
 /src/test.ts
+.env
