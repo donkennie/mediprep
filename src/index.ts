@@ -27,36 +27,41 @@ const getDBClient = (
 };
 
 const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
-    const kafka = new Kafka({
-        clientId: environmentVariables.kafkaClientId,
-        brokers: environmentVariables.kafkaBroker,
-        logLevel: logLevel.INFO,
-        retry: {
-            initialRetryTime: 100,
-            retries: 8,
-        },
-    });
-    const topics = [environmentVariables.kafkaEmailTopic];
+  const kafka = new Kafka({
+    clientId: environmentVariables.kafkaClientId || 'mediprep-app',
+    brokers: environmentVariables.kafkaBroker,
+    logLevel: logLevel.INFO,
+    retry: {
+      initialRetryTime: 100,
+      retries: 8,
+    },
+  });
+
+  try {
     const admin = kafka.admin();
     await admin.connect();
-    const topicExists = await admin.listTopics();
-    const upsertTopics = topics.map(async (topic) => {
-        //   Check if topic exists and create it if it doesn't
-        if (topicExists.includes(topic)) {
-        } else {
-            await admin.createTopics({
-                topics: [
-                    {
-                        topic,
-                    },
-                ],
-            });
+
+    const existingTopics = await admin.listTopics();
+    const requiredTopics = [environmentVariables.kafkaEmailTopic];
+
+    await Promise.all(
+      requiredTopics.map(async (topic) => {
+        if (!existingTopics.includes(topic)) {
+          await admin.createTopics({ topics: [{ topic }] });
+          console.log(`✅ Kafka topic created: ${topic}`);
         }
-    });
-    await Promise.all(upsertTopics);
+      })
+    );
+
     await admin.disconnect();
-    return kafka;
+  } catch (error: any) {
+    console.error('❌ Kafka setup error:', error.message || error);
+    // ⚠️ We still return Kafka instance, but skip using it later if admin setup failed
+  }
+
+  return kafka;
 };
+
 
 const main = async () => {
     const environmentVariables = new Environment();
