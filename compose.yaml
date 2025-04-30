@@ -8,25 +8,40 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - 2181:2181
+    networks:
+      - mediprep-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mediprep-kafka:
     image: confluentinc/cp-kafka:latest
     container_name: mediprep-kafka
     restart: always
     depends_on: 
-      - mediprep-zookeeper
+      mediprep-zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
-      - 29092:29092
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: mediprep-zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://mediprep-kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - mediprep-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "mediprep-kafka:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mediprep-postgresql:
-    hostname: 127.0.0.1
     image: ankane/pgvector
     container_name: mediprep-postgres
     ports:
@@ -38,18 +53,47 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mediprep-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mediprep"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mediprep-redis:
     image: redis:latest
     container_name: mediprep-redis
     restart: always
     ports:
       - "6379:6379"
-    command: redis-server --save 20 1 --loglevel warning --requirepass 1234
+    networks:
+      - mediprep-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mediprep-app:
+    build: .
+    container_name: mediprep-app
+    restart: always
+    depends_on:
+      mediprep-kafka:
+        condition: service_healthy
+      mediprep-redis:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
     environment:
-      - REDIS_REPLICATION_MODE=master
-      - REDIS_PASSWORD=1234
+      KAFKA_BROKER: mediprep-kafka:9092
+      REDIS_HOST: mediprep-redis
+      KAFKA_EXAM_QUESTION_FILE_TOPIC: examquestionfile
+      KAFKA_CLIENT_ID: MEDIPREP
+    networks:
+      - mediprep-network
 
-volumes:
-  redis:
-    driver: local
-
+networks:
+  mediprep-network:
+    driver: bridge

@@ -27,39 +27,70 @@ const getDBClient = (
 };
 
 const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
+  // const brokers = Array.isArray(environmentVariables.kafkaBroker) 
+  //   ? environmentVariables.kafkaBroker 
+  //   : [environmentVariables.kafkaBroker];
+    
+  // console.log(`Connecting to Kafka brokers: ${brokers.join(', ')}`);
+  
   const kafka = new Kafka({
-    clientId: environmentVariables.kafkaClientId || 'mediprep-app',
-    brokers: environmentVariables.kafkaBroker,
+    clientId: environmentVariables.kafkaClientId || 'MEDIPREP',
+    brokers: [process.env.KAFKA_BROKER || 'mediprep-kafka:9092'],
     logLevel: logLevel.INFO,
     retry: {
       initialRetryTime: 100,
       retries: 8,
     },
+    connectionTimeout: 10000,
   });
 
   try {
+    console.log('Attempting to connect to Kafka admin...');
     const admin = kafka.admin();
     await admin.connect();
+    console.log('✅ Connected to Kafka admin');
 
     const existingTopics = await admin.listTopics();
-    const requiredTopics = [environmentVariables.kafkaEmailTopic];
+    console.log(`Existing Kafka topics: ${existingTopics.join(', ') || 'none'}`);
+    
+    // Make sure to include all required topics from environment variables
+    const requiredTopics = [
+      environmentVariables.kafkaEmailTopic,
+      environmentVariables.kafkaExamQuestionFileTopic,
+    ].filter(Boolean); // Filter out any undefined topics
+    
+    console.log(`Required topics: ${requiredTopics.join(', ')}`);
 
     await Promise.all(
       requiredTopics.map(async (topic) => {
         if (!existingTopics.includes(topic)) {
-          await admin.createTopics({ topics: [{ topic }] });
+          console.log(`Creating topic: ${topic}`);
+          await admin.createTopics({ 
+            topics: [{ 
+              topic,
+              numPartitions: 1,
+              replicationFactor: 1
+            }] 
+          });
           console.log(`✅ Kafka topic created: ${topic}`);
+        } else {
+          console.log(`✅ Kafka topic already exists: ${topic}`);
         }
       })
     );
 
     await admin.disconnect();
+    console.log('✅ Kafka setup completed successfully');
+    return kafka;
   } catch (error: any) {
     console.error('❌ Kafka setup error:', error.message || error);
-    // ⚠️ We still return Kafka instance, but skip using it later if admin setup failed
+    if (error.stack) {
+      console.error(error.stack);
+    }
+    
+    // We still return Kafka instance, but application should handle connection failures gracefully
+    return kafka;
   }
-
-  return kafka;
 };
 
 
