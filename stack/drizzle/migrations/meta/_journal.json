@@ -15,6 +15,20 @@
       "when": 1742665861500,
       "tag": "0001_brave_random",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1746000696247,
+      "tag": "0002_strong_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1746003312548,
+      "tag": "0003_skinny_the_leader",
+      "breakpoints": true
     }
   ]
 }
