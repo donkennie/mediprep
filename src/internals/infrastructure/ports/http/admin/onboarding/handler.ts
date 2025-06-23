@@ -46,8 +46,8 @@ export class AdminOnboardingHandler {
         this.router
             .route("/:id")
             .delete(
-                AuthorizeAdmin(this.services.adminRepository),
-                CheckPermission("delete_admin"),
+                //AuthorizeAdmin(this.services.adminRepository),
+                //CheckPermission("delete_admin"),
                 ValidationMiddleware(removeAdminSchema, "params"),
                 this.removeAdmin
             );
