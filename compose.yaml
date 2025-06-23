@@ -41,25 +41,25 @@ services:
       timeout: 5s
       retries: 5
 
-  mediprep-postgresql:
-    image: ankane/pgvector
-    container_name: mediprep-postgres
-    ports:
-      - "5442:5432"
-    restart: always
-    environment:
-      - POSTGRES_DB=mediprep
-      - POSTGRES_USER=mediprep
-      - POSTGRES_PASSWORD=password
-    volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - mediprep-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mediprep"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # mediprep-postgresql:
+  #   image: ankane/pgvector
+  #   container_name: mediprep-postgres
+  #   ports:
+  #     - "5442:5432"
+  #   restart: always
+  #   environment:
+  #     - POSTGRES_DB=mediprep
+  #     - POSTGRES_USER=mediprep
+  #     - POSTGRES_PASSWORD=password
+  #   volumes:
+  #     - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  #   networks:
+  #     - mediprep-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U mediprep"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   mediprep-redis:
     image: redis:latest

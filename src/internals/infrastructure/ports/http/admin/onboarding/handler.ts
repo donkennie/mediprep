@@ -46,8 +46,8 @@ export class AdminOnboardingHandler {
         this.router
             .route("/:id")
             .delete(
-                //AuthorizeAdmin(this.services.adminRepository),
-                //CheckPermission("delete_admin"),
+                AuthorizeAdmin(this.services.adminRepository),
+                CheckPermission("delete_admin"),
                 ValidationMiddleware(removeAdminSchema, "params"),
                 this.removeAdmin
             );
@@ -55,8 +55,8 @@ export class AdminOnboardingHandler {
         this.router
             .route("/add")
             .post(
-                // AuthorizeAdmin(this.services.adminRepository),
-                // CheckPermission("create_admin"),
+                AuthorizeAdmin(this.services.adminRepository),
+                CheckPermission("create_admin"),
                 ValidationMiddleware(addAdminSchema, "body"),
                 this.addAdminHandler
             );
