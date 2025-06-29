@@ -10,14 +10,14 @@ export interface ResumeTest {
 
 export class ResumeTestC implements ResumeTest {
     testRepositories: TestRepository;
-    cacheRepository: CacheRepository;
+    //cacheRepository: CacheRepository;
 
     constructor(
         testRepositories: TestRepository,
-        cacheRepository: CacheRepository
+        //cacheRepository: CacheRepository
     ) {
         this.testRepositories = testRepositories;
-        this.cacheRepository = cacheRepository;
+        //this.cacheRepository = cacheRepository;
     }
 
     Handle = async (
@@ -27,11 +27,11 @@ export class ResumeTestC implements ResumeTest {
         try {
             const { testId, timeLeft } =
                 await this.testRepositories.resumeTestStatus(testIde, userId);
-            await this.cacheRepository.Set(
-                testId,
-                testId,
-                Math.round(timeLeft)
-            );
+            // await this.cacheRepository.Set(
+            //     testId,
+            //     testId,
+            //     Math.round(timeLeft)
+            // );
             return { testID: testId, remainingTime: Math.round(timeLeft) };
         } catch (error) {
             throw error;

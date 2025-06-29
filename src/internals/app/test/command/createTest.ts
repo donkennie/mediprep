@@ -9,11 +9,11 @@ export interface CreateTest {
 
 export class CreateTestC implements CreateTestC {
     testRepositories: TestRepository
-    cacheRepository: CacheRepository
+    //cacheRepository: CacheRepository
 
-    constructor(testRepositories: TestRepository, cacheRepository: CacheRepository) {
+    constructor(testRepositories: TestRepository){//, cacheRepository: CacheRepository) {
         this.testRepositories = testRepositories
-        this.cacheRepository = cacheRepository
+        //this.cacheRepository = cacheRepository
     }
 
     Handle = async (test: PartialWithRequired<Test, "questions" | "questionMode" | "userId" | "examId" | "endTime" | "type">): Promise<string> => {
@@ -24,8 +24,8 @@ export class CreateTestC implements CreateTestC {
             }
             console.log(test.endTime, new Date())
             const {testId, endTime} = await this.testRepositories.CreateTest(test)
-            const newExpiry = (endTime.getTime() - new Date().getTime()) / 1000
-            await this.cacheRepository.Set(testId, testId, Math.round(newExpiry))
+            //const newExpiry = (endTime.getTime() - new Date().getTime()) / 1000
+            //await this.cacheRepository.Set(testId, testId, Math.round(newExpiry))
             return testId
         } catch (error) {
             throw error;

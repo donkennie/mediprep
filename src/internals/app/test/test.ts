@@ -20,13 +20,13 @@ export class Commands {
     resumeTest: ResumeTest
 
 
-    constructor(testRepository: TestRepository, cacheRepository: CacheRepository) {
-        this.createTest = new CreateTestC(testRepository, cacheRepository)
+    constructor(testRepository: TestRepository){ //cacheRepository: CacheRepository) {
+        this.createTest = new CreateTestC(testRepository)//, cacheRepository)
         this.scoreTest = new ScoreTestC(testRepository)
         this.endTest = new EndTestC(testRepository)
         this.forceEndTest = new ForceEndTestC(testRepository)
         this.pauseTest = new PauseTestC(testRepository)
-        this.resumeTest = new ResumeTestC(testRepository, cacheRepository)
+        this.resumeTest = new ResumeTestC(testRepository)//, cacheRepository)
     }
 }
 
@@ -50,10 +50,10 @@ export class TestsServices {
     testRepositories: TestRepository;
 
     constructor(
-        testRepositories: TestRepository, cacheRepository: CacheRepository
+        testRepositories: TestRepository//, cacheRepository: CacheRepository
     ) {
         this.testRepositories = testRepositories;
-        this.commands = new Commands(testRepositories, cacheRepository);
+        this.commands = new Commands(testRepositories);//, cacheRepository);
         this.queries = new Queries(testRepositories);
     }
 }

@@ -45,7 +45,7 @@ export class Adapter {
 
     cartRepositories: CartRepository
 
-    CacheRepository : CacheRepository
+    //CacheRepository : CacheRepository
 
     PaystackClient:  Paystack
     StripeClient:  Stripe
@@ -56,7 +56,7 @@ export class Adapter {
         azureBlobClient: BlobServiceClient,
         kafka: Kafka,
         environmentVariables: Environment,
-        redisClient:  ReturnType<typeof createClient>,
+        //redisClient:  ReturnType<typeof createClient>,
         paystackClient:  Paystack,
         stripeClient:  Stripe
     ) {
@@ -71,7 +71,7 @@ export class Adapter {
         this.userExamAccessRepository = new UserExamAccessRepositoryDrizzle(dbClient)
         this.testRepositories = new TestRepositoryDrizzle(dbClient)
         this.cartRepositories = new CartRepositoryDrizzle(dbClient)
-        this.CacheRepository = new RedisCacheRepository(redisClient,environmentVariables)
+        //this.CacheRepository = new RedisCacheRepository(redisClient,environmentVariables)
         this.PaystackClient = paystackClient
         this.StripeClient = stripeClient
     }

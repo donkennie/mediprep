@@ -26,16 +26,19 @@ const getDBClient = (
     })
 };
 
+
 const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
-  // const brokers = Array.isArray(environmentVariables.kafkaBroker) 
-  //   ? environmentVariables.kafkaBroker 
-  //   : [environmentVariables.kafkaBroker];
-    
-  // console.log(`Connecting to Kafka brokers: ${brokers.join(', ')}`);
-  
+  const brokers = [process.env.KAFKA_BROKER || 'mediprep-eventhub.servicebus.windows.net'];
+
   const kafka = new Kafka({
     clientId: environmentVariables.kafkaClientId || 'MEDIPREP',
-    brokers: [process.env.KAFKA_BROKER || 'mediprep-kafka:9092'],
+    brokers,
+    ssl: true,
+    sasl: {
+      mechanism: 'plain',
+      username: '$ConnectionString',
+      password: process.env.KAFKA_SASL_PASSWORD || '', 
+    },
     logLevel: logLevel.INFO,
     retry: {
       initialRetryTime: 100,
@@ -45,6 +48,7 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
   });
 
   try {
+    console.log(`Connecting to Kafka brokers: ${brokers.join(', ')}`);
     console.log('Attempting to connect to Kafka admin...');
     const admin = kafka.admin();
     await admin.connect();
@@ -53,11 +57,10 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
     const existingTopics = await admin.listTopics();
     console.log(`Existing Kafka topics: ${existingTopics.join(', ') || 'none'}`);
     
-    // Make sure to include all required topics from environment variables
     const requiredTopics = [
       environmentVariables.kafkaEmailTopic,
       environmentVariables.kafkaExamQuestionFileTopic,
-    ].filter(Boolean); // Filter out any undefined topics
+    ].filter(Boolean);
     
     console.log(`Required topics: ${requiredTopics.join(', ')}`);
 
@@ -65,14 +68,20 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
       requiredTopics.map(async (topic) => {
         if (!existingTopics.includes(topic)) {
           console.log(`Creating topic: ${topic}`);
-          await admin.createTopics({ 
-            topics: [{ 
-              topic,
-              numPartitions: 1,
-              replicationFactor: 1
-            }] 
-          });
-          console.log(`✅ Kafka topic created: ${topic}`);
+          // ❗ Azure Event Hubs does NOT support dynamic topic creation
+          // So this will likely fail — best to create Event Hubs manually in Azure Portal
+          try {
+            await admin.createTopics({
+              topics: [{
+                topic,
+                numPartitions: 1,
+                replicationFactor: 1,
+              }],
+            });
+            console.log(`✅ Kafka topic created: ${topic}`);
+          } catch (err) {
+            console.warn(`⚠️ Failed to create topic (might already exist or not allowed on Event Hubs): ${topic}`);
+          }
         } else {
           console.log(`✅ Kafka topic already exists: ${topic}`);
         }
@@ -87,11 +96,71 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
     if (error.stack) {
       console.error(error.stack);
     }
-    
-    // We still return Kafka instance, but application should handle connection failures gracefully
     return kafka;
   }
 };
+
+// const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
+
+//   const kafka = new Kafka({
+//     clientId: environmentVariables.kafkaClientId || 'MEDIPREP',
+//     brokers: [process.env.KAFKA_BROKER || 'mediprep-kafka:9092'],
+//     logLevel: logLevel.INFO,
+//     retry: {
+//       initialRetryTime: 100,
+//       retries: 8,
+//     },
+//     connectionTimeout: 10000,
+//   });
+
+//   try {
+//     console.log('Attempting to connect to Kafka admin...');
+//     const admin = kafka.admin();
+//     await admin.connect();
+//     console.log('✅ Connected to Kafka admin');
+
+//     const existingTopics = await admin.listTopics();
+//     console.log(`Existing Kafka topics: ${existingTopics.join(', ') || 'none'}`);
+    
+//     // Make sure to include all required topics from environment variables
+//     const requiredTopics = [
+//       environmentVariables.kafkaEmailTopic,
+//       environmentVariables.kafkaExamQuestionFileTopic,
+//     ].filter(Boolean); // Filter out any undefined topics
+    
+//     console.log(`Required topics: ${requiredTopics.join(', ')}`);
+
+//     await Promise.all(
+//       requiredTopics.map(async (topic) => {
+//         if (!existingTopics.includes(topic)) {
+//           console.log(`Creating topic: ${topic}`);
+//           await admin.createTopics({ 
+//             topics: [{ 
+//               topic,
+//               numPartitions: 1,
+//               replicationFactor: 1
+//             }] 
+//           });
+//           console.log(`✅ Kafka topic created: ${topic}`);
+//         } else {
+//           console.log(`✅ Kafka topic already exists: ${topic}`);
+//         }
+//       })
+//     );
+
+//     await admin.disconnect();
+//     console.log('✅ Kafka setup completed successfully');
+//     return kafka;
+//   } catch (error: any) {
+//     console.error('❌ Kafka setup error:', error.message || error);
+//     if (error.stack) {
+//       console.error(error.stack);
+//     }
+    
+//     // We still return Kafka instance, but application should handle connection failures gracefully
+//     return kafka;
+//   }
+// };
 
 
 const main = async () => {
@@ -99,29 +168,29 @@ const main = async () => {
     const dbClient = await getDBClient(environmentVariables).connect();
     const kafka = await getKafka(environmentVariables);
     const azureBlobClient: BlobServiceClient = getBlobClient(environmentVariables)
-    const redisClient: ReturnType<typeof createClient> = createClient({
-        url: environmentVariables.redisURL,
-    })
-    await redisClient.on('error', err => {
-        console.log("redis error", err)
-        process.exit(1)
-    }).connect();
+    // const redisClient: ReturnType<typeof createClient> = createClient({
+    //     url: environmentVariables.redisURL,
+    // })
+    // await redisClient.on('error', err => {
+    //     console.log("redis error", err)
+    //     process.exit(1)
+    // }).connect();
 
-    const subRedisClient: ReturnType<typeof createClient> = createClient({
-        url: environmentVariables.redisURL,
+    // const subRedisClient: ReturnType<typeof createClient> = createClient({
+    //     url: environmentVariables.redisURL,
         
-    })
-    await subRedisClient.on('error', err => {
-        console.log("redis error from here")
-        process.exit(1)
-    }).connect();
+    // })
+    // await subRedisClient.on('error', err => {
+    //     console.log("redis error from here")
+    //     process.exit(1)
+    // }).connect();
 
     const paystack = new Paystack(environmentVariables.paystackSecret)
     const stripe = new Stripe(environmentVariables.stripeSecret);
 
 
 
-    const adapter: Adapter = new Adapter(dbClient, azureBlobClient, kafka, environmentVariables, redisClient,paystack,stripe);
+    const adapter: Adapter = new Adapter(dbClient, azureBlobClient, kafka, environmentVariables,paystack,stripe);
     const services: Services = new Services(adapter,environmentVariables);
     const httpServer: Server = new Server(adapter,services, environmentVariables);
     const kafkaQueue: KafkaQueue = new KafkaQueue(
@@ -130,14 +199,14 @@ const main = async () => {
         azureBlobClient,
         environmentVariables
     );
-    const redisQueue: RedisQueue = new RedisQueue(
-        services,
-        subRedisClient,
-    )
+    // const redisQueue: RedisQueue = new RedisQueue(
+    //     services,
+    //     subRedisClient,
+    // )
 
     httpServer.listen();
     await kafkaQueue.listen();
-    await redisQueue.listen()
+    //await redisQueue.listen()
 };
 
 main().then(r => {});
