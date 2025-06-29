@@ -100,6 +100,7 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
   }
 };
 
+//#region 
 // const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
 
 //   const kafka = new Kafka({
@@ -161,7 +162,7 @@ const getKafka = async (environmentVariables: Environment): Promise<Kafka> => {
 //     return kafka;
 //   }
 // };
-
+//#endregion
 
 const main = async () => {
     const environmentVariables = new Environment();
