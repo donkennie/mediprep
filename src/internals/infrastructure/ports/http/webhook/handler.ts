@@ -45,8 +45,10 @@ export class WebhookHandler {
             await this.services.commands.examSubscribe.Handle(reference)
             new SuccessResponse(res).send();
         } catch (error) {
-            console.log(error)
-            new SuccessResponse(res).send();
+            // console.log(error)
+            // new SuccessResponse(res).send();
+            console.error(`Webhook Error (reference: ${reference}):`, error);
+            return res.status(500).send({ message: "Failed to process payment" });
         }
     };
     stripe = async (req: Request, res: Response) => {
