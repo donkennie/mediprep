@@ -5,7 +5,7 @@ import {PaginationFilter, PaginationMetaData} from "../../../../../../pkg/types/
 import {Admins} from "../../../../../../../stack/drizzle/schema/admins"
 import {and, eq, ilike, sql} from "drizzle-orm";
 import {BadRequestError} from "../../../../../../pkg/errors/customError";
-import {ExamAccess} from "../../../../../../../stack/drizzle/schema/exams";
+import {ExamAccess, Exams} from "../../../../../../../stack/drizzle/schema/exams";
 import {PoolClient} from "pg";
 import  * as schema from "../../../../../../../stack/drizzle/schema/admins"
 import {User} from "../../../../../domain/users/user";
@@ -32,11 +32,11 @@ export class AdminRepositoryDrizzle implements AdminRepository {
                     const newAdmin = newAdminResults[0]
                     if (adminParams.examAccess != undefined && adminParams.examAccess.length > 0) {
                         for await (let examId of adminParams.examAccess) {
-                            const examRes = await tx.select({id: Admins.id}).from(Admins).where(eq(Admins.id, examId))
+                            const examRes = await tx.select({id: Exams.id}).from(Exams).where(eq(Exams.id, examId))
                             const examExist = examRes[0]
                             if (!examExist) {
                                 try {
-                                    tx.rollback()
+                                    throw new BadRequestError(`exam with exam id '${examId}' does not exist`);
                                 } catch (error) {
                                     throw new BadRequestError(`exam with exam id '${examId}' does not exist`)
                                 }
