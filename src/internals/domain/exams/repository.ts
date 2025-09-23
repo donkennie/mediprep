@@ -20,7 +20,7 @@ export interface ExamRepository {
     DeleteExam: (id: string) => Promise<void>
     // GetExamDetails: (id: string) => Promise<Exam>
     GetExamById: (id: string) => Promise<Exam>
-    GetExamAnalytics(id: string): Promise<ExamWithAnalytics>
+    GetExamAnalytics(id: string): Promise<Exam>
     GetExams: (filter: PaginationFilter) => Promise<{ exams: Exam[], metadata: PaginationMetaData }>
     GetExamsForUserOrAdmin(filter: PaginationFilter, adminId?: string): Promise<{ exams: any[], metadata: PaginationMetaData }>
     AddExamDiscount: (discount: ExamDiscount) => Promise<void>

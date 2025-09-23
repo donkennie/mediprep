@@ -450,52 +450,52 @@ export class ExamRepositoryDrizzle implements ExamRepository {
 
     async GetExams(filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }> {
         try {
-          const filters: any[] = [];
-          if (filter.name) {
-            filters.push(ilike(Exams.name, `%${filter.name}%`));
-          }
-    
-          // total
-          const totalResult = await this.db
-            .select({ total: count() })
-            .from(Exams)
-            .where(filters.length > 0 ? and(...filters) : undefined);
-    
-          const total = Number(totalResult[0]?.total ?? 0);
-    
-          if (total <= 0) {
-            return {
-              exams: [],
-              metadata: { total: 0, perPage: filter.limit, currentPage: filter.page }
-            };
-          }
-    
-          const rows = await this.db.select()
-            .from(Exams)
-            .where(filters.length > 0 ? and(...filters) : undefined)
-            .limit(filter.limit)
-            .offset((filter.page - 1) * filter.limit);
-    
-          return {
-            exams: rows.map(this.mapToExam),
-            metadata: {
-              total,
-              perPage: filter.limit,
-              currentPage: filter.page
+            const filters: any[] = [];
+            if (filter.name) {
+                filters.push(ilike(Exams.name, `%${filter.name}%`));
             }
-          };
-        } catch (error) {
-          throw error;
-        }
-      }
 
-      async GetExamsForUserOrAdmin(
+            // total
+            const totalResult = await this.db
+                .select({ total: count() })
+                .from(Exams)
+                .where(filters.length > 0 ? and(...filters) : undefined);
+
+            const total = Number(totalResult[0]?.total ?? 0);
+
+            if (total <= 0) {
+                return {
+                    exams: [],
+                    metadata: { total: 0, perPage: filter.limit, currentPage: filter.page }
+                };
+            }
+
+            const rows = await this.db.select()
+                .from(Exams)
+                .where(filters.length > 0 ? and(...filters) : undefined)
+                .limit(filter.limit)
+                .offset((filter.page - 1) * filter.limit);
+
+            return {
+                exams: rows.map(this.mapToExam),
+                metadata: {
+                    total,
+                    perPage: filter.limit,
+                    currentPage: filter.page
+                }
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async GetExamsForUserOrAdmin(
         filter: PaginationFilter,
         adminId?: string
     ): Promise<{ exams: Exam[]; metadata: PaginationMetaData }> {
         try {
             let examIds: string[] = [];
-    
+
             if (adminId) {
                 // 1. Get admin roles
                 const adminRows = await this.db
@@ -503,90 +503,90 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     .from(Admins)
                     .where(eq(Admins.id, adminId))
                     .limit(1);
-    
+
                 const admin = adminRows[0] ?? null;
-    
+
                 if (!admin) throw new BadRequestError("Admin not found");
-    
+
                 const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
-    
+
                 // 2. Super-admin or admin: get all exams
                 if (rolesArr.includes("admin") || rolesArr.includes("super-admin")) {
                     return await this.GetExams(filter);
                 }
-    
+
                 // 3. Exams from ExamAccess
                 const accessRows = await this.db
                     .select({ examId: ExamAccess.examId })
                     .from(ExamAccess)
                     .where(eq(ExamAccess.adminId, adminId));
-    
+
                 const accessExamIds = accessRows
                     .map(r => r.examId)
                     .filter((id): id is string => id !== null);
-    
+
                 // 4. Exams from QuestionAssignments
                 const assignmentRows = await this.db
                     .select({ examId: QuestionAssignments.examId })
                     .from(QuestionAssignments)
                     .where(eq(QuestionAssignments.adminId, adminId));
-    
+
                 const assignmentExamIds = assignmentRows
                     .map(r => r.examId)
                     .filter((id): id is string => id !== null);
-    
+
                 // 5. Combine all allowed exam IDs
                 examIds = Array.from(new Set([...accessExamIds, ...assignmentExamIds]));
             }
-    
+
             // 6. If no adminId, or examIds collected, fallback to public/free exams
             if (!adminId || examIds.length === 0) {
                 const allExams = await this.GetExams(filter);
                 return allExams;
             }
-    
+
             // 7. Fetch exams by IDs using your helper
             return await this.GetExamsByIds(examIds, filter);
-    
+
         } catch (error) {
             throw error;
         }
     }
-    
-      
 
-      async GetExamsByIds(examIds: string[], filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }> {
+
+
+    async GetExamsByIds(examIds: string[], filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }> {
         try {
-          if (!examIds || examIds.length === 0) {
-            return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
-          }
-    
-          const totalResult = await this.db
-            .select({ total: count() })
-            .from(Exams)
-            .where(inArray(Exams.id, examIds));
-    
-          const total = Number(totalResult[0]?.total ?? 0);
-    
-          if (total <= 0) {
-            return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
-          }
-    
-          const rows = await this.db.select()
-            .from(Exams)
-            .where(inArray(Exams.id, examIds))
-            .limit(filter.limit)
-            .offset((filter.page - 1) * filter.limit);
-    
-          return {
-            exams: rows.map(this.mapToExam),
-            metadata: { total, perPage: filter.limit, currentPage: filter.page }
-          };
+            if (!examIds || examIds.length === 0) {
+                return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+            }
+
+            const totalResult = await this.db
+                .select({ total: count() })
+                .from(Exams)
+                .where(inArray(Exams.id, examIds));
+
+            const total = Number(totalResult[0]?.total ?? 0);
+
+            if (total <= 0) {
+                return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+            }
+
+            const rows = await this.db.select()
+                .from(Exams)
+                .where(inArray(Exams.id, examIds))
+                .limit(filter.limit)
+                .offset((filter.page - 1) * filter.limit);
+
+            return {
+                exams: rows.map(this.mapToExam),
+                metadata: { total, perPage: filter.limit, currentPage: filter.page }
+            };
         } catch (error) {
-          throw error;
+            throw error;
         }
-      }
-    
+    }
+
 
     async GetExamDiscounts(examID: string): Promise<ExamDiscount[]> {
         try {
@@ -827,7 +827,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
     ): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
         try {
             let allowedExamIds: string[] = [];
-    
+
             if (adminId) {
                 // 1. Get admin roles
                 const adminRows = await this.db
@@ -835,12 +835,12 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     .from(Admins)
                     .where(eq(Admins.id, adminId))
                     .limit(1);
-    
+
                 const admin = adminRows[0] ?? null;
                 if (!admin) throw new BadRequestError("Admin not found");
-    
+
                 const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
-    
+
                 // 2. If not super-admin/admin, get exams from assignments AND access
                 if (!rolesArr.includes("admin") && !rolesArr.includes("super-admin")) {
                     const [assignmentRows, accessRows] = await Promise.all([
@@ -851,28 +851,28 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                             .from(ExamAccess)
                             .where(eq(ExamAccess.adminId, adminId))
                     ]);
-    
+
                     const assignmentExamIds = assignmentRows.map(a => a.examId).filter(Boolean);
                     const accessExamIds = accessRows.map(a => a.examId).filter(Boolean);
-    
+
                     allowedExamIds = Array.from(new Set([...assignmentExamIds, ...accessExamIds])) as string[];
-    
+
                     if (allowedExamIds.length === 0) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-    
+
                     // If a filter.examId is provided, ensure it's within allowedExamIds
                     if (filter.examId && !allowedExamIds.includes(filter.examId)) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-    
+
                     if (filter.examId) allowedExamIds = [filter.examId];
                 }
             } else if (filter.examId) {
                 // public/free access mode
                 allowedExamIds = [filter.examId];
             }
-    
+
             // 3. Build filters
             const filters: any[] = [];
             if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
@@ -881,20 +881,20 @@ export class ExamRepositoryDrizzle implements ExamRepository {
             if (filter.range && filter.range.length > 0) {
                 filters.push(
                     filter.examId ? inArray(Questions.examQuestionNumber, filter.range)
-                                  : inArray(Questions.questionNumber, filter.range)
+                        : inArray(Questions.questionNumber, filter.range)
                 );
             }
             if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
-    
+
             // 4. Total
             const totalResult = await this.db
                 .select({ count: count() })
                 .from(Questions)
                 .where(filters.length > 0 ? and(...filters) : undefined);
             const total = totalResult[0].count;
-    
+
             if (total === 0) return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
-    
+
             // 5. Fetch questions
             const questions = await this.db.query.Questions.findMany({
                 where: filters.length > 0 ? and(...filters) : undefined,
@@ -903,7 +903,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 limit: filter.limit,
                 offset: (filter.page - 1) * filter.limit
             });
-    
+
             // 6. Map and return
             return {
                 questions: questions.map((q: any): Question => ({
@@ -922,14 +922,14 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 })),
                 metadata: { total, perPage: filter.limit, currentPage: filter.page }
             };
-    
+
         } catch (error) {
             throw error;
         }
     }
-    
-    
-    
+
+
+
 
     async GetQuestionBatches(filter: PaginationFilter): Promise<{
         questionBatches: QB[],
@@ -1016,27 +1016,39 @@ export class ExamRepositoryDrizzle implements ExamRepository {
         }
     }
 
-    async GetExamAnalytics(id: string): Promise<ExamWithAnalytics> {
+    async GetExamAnalytics(id: string): Promise<Exam> {
         try {
-            const examResult = await this.db.select().from(Exams).where(eq(Exams.id, id));
+            const examResult = await this.db
+                .select()
+                .from(Exams)
+                .where(eq(Exams.id, id));
+    
             if (examResult.length < 1) {
                 throw new BadRequestError(`exam with id '${id}' does not exist`);
             }
-
+    
             const exam = examResult[0];
-
-            // Get related data
-            const subjects = await this.db.select().from(Subjects).where(eq(Subjects.examId, id));
-            const courses = await this.db.select().from(Courses).where(eq(Courses.examId, id));
-            const userAccesses = await this.db.select({ 
-                userId: UserExamAccess.userId, 
-                expiryDate: UserExamAccess.expiryDate 
-            })
-            .from(UserExamAccess)
-            .where(eq(UserExamAccess.examId, id));
-            
-            const sales = await this.db.select().from(SaleItems).where(eq(SaleItems.examID, id));
-
+    
+            const subjects = await this.db
+                .select()
+                .from(Subjects)
+                .where(eq(Subjects.examId, id));
+    
+            const courses = await this.db
+                .select()
+                .from(Courses)
+                .where(eq(Courses.examId, id));
+    
+            const users = await this.db
+                .select()
+                .from(UserExamAccess)
+                .where(eq(UserExamAccess.examId, id));
+    
+            const sales = await this.db
+                .select()
+                .from(SaleItems)
+                .where(eq(SaleItems.examID, id));
+    
             return {
                 id: exam.id as string,
                 name: exam.name as string,
@@ -1046,31 +1058,18 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 mocksTaken: exam.mocksTaken,
                 mockTestTime: exam.mockTestTime,
                 imageURL: exam.imageURL as string,
-                mockQuestions: exam.mockQuestions,
                 createdAt: exam.createdAt as Date,
                 updatedAt: exam.updatedAt as Date,
                 subjectsNo: subjects.length,
                 coursesNo: courses.length,
-                usersNo: userAccesses.length,
+                usersNo: users.length,
                 salesNo: sales.length,
-                userAccesses: userAccesses.map(u => {
-                    const expiryDate = u.expiryDate;
-                    const now = new Date();
-                    const isExpired = expiryDate < now;
-                    const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    return {
-                        userId: u.userId,
-                        expiryDate: u.expiryDate,
-                        isExpired,
-                        daysRemaining: isExpired ? 0 : daysRemaining
-                    };
-                })
             };
         } catch (error) {
             throw error;
         }
     }
+    
 
     async GetCourseById(courseId: string): Promise<Course> {
         try {
@@ -1332,57 +1331,57 @@ export class ExamRepositoryDrizzle implements ExamRepository {
         adminId: string,
         range: string,
         examId?: string,
-      ): Promise<QuestionAssignment> {
+    ): Promise<QuestionAssignment> {
         const [assignment] = await this.db
-          .insert(QuestionAssignments)
-          .values({
-            adminId,
-            examId: examId || null,
-            questionRange: range,
-          })
-          .returning();
-      
+            .insert(QuestionAssignments)
+            .values({
+                adminId,
+                examId: examId || null,
+                questionRange: range,
+            })
+            .returning();
+
         return {
-          id: assignment.id!,
-          adminId: assignment.adminId,
-          examId: assignment.examId ?? undefined,
-          questionRange: assignment.questionRange,
-          assignedAt: assignment.assignedAt
+            id: assignment.id!,
+            adminId: assignment.adminId,
+            examId: assignment.examId ?? undefined,
+            questionRange: assignment.questionRange,
+            assignedAt: assignment.assignedAt
         };
-      }
-      
+    }
+
 
     async GetAssignedQuestions(adminId: string, examId?: string): Promise<QuestionAssignment[]> {
         try {
-          const whereCondition = examId
-            ? and(eq(QuestionAssignments.adminId, adminId), eq(QuestionAssignments.examId, examId))
-            : eq(QuestionAssignments.adminId, adminId);
-    
-          const rows = await this.db.select()
-            .from(QuestionAssignments)
-            .where(whereCondition);
-    
-          // normalize null -> undefined
-          return rows.map((a: any) => ({
-            id: a.id ?? undefined,
-            adminId: a.adminId,
-            examId: a.examId ?? undefined,
-            questionRange: a.questionRange,
-            assignedAt: a.assignedAt,
-            createdAt: a.createdAt ?? undefined,
-            updatedAt: a.updatedAt ?? undefined,
-          }));
+            const whereCondition = examId
+                ? and(eq(QuestionAssignments.adminId, adminId), eq(QuestionAssignments.examId, examId))
+                : eq(QuestionAssignments.adminId, adminId);
+
+            const rows = await this.db.select()
+                .from(QuestionAssignments)
+                .where(whereCondition);
+
+            // normalize null -> undefined
+            return rows.map((a: any) => ({
+                id: a.id ?? undefined,
+                adminId: a.adminId,
+                examId: a.examId ?? undefined,
+                questionRange: a.questionRange,
+                assignedAt: a.assignedAt,
+                createdAt: a.createdAt ?? undefined,
+                updatedAt: a.updatedAt ?? undefined,
+            }));
         } catch (error) {
-          throw error;
+            throw error;
         }
-      }
+    }
 
     async RemoveQuestionAssignment(adminId: string, examId?: string): Promise<void> {
         try {
             const whereCondition = examId
                 ? and(eq(QuestionAssignments.adminId, adminId), eq(QuestionAssignments.examId, examId))
                 : eq(QuestionAssignments.adminId, adminId);
-    
+
             await this.db.delete(QuestionAssignments).where(whereCondition);
         } catch (error) {
             throw error;
@@ -1405,7 +1404,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
             updatedAt: row.updatedAt as Date,
         };
     }
-    
+
 
 }
 

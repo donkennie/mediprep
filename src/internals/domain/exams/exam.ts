@@ -16,7 +16,8 @@ export type Exam = {
     subjectsNo?: number,
     coursesNo?: number,
     usersNo?: number,
-    salesNo?: number
+    salesNo?: number,
+    expiryDate?: Date;
 };
 
 export type ExamDiscount = {
