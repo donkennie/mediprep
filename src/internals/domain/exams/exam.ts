@@ -113,3 +113,17 @@ export type QuestionBatch = {
     createdAt: Date,
     updatedAt: Date,
 }
+
+export type QuestionAssignment = {
+    id?: string;
+    adminId: string;
+    examId?: string;
+    questionRange: string; // e.g., "1-10,15,20-25"
+    assignedAt?: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export type ExamWithAnalytics = Exam & { 
+    userAccesses: { userId: string; expiryDate: Date }[] 
+};

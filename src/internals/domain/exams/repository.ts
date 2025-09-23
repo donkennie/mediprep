@@ -4,7 +4,9 @@ import {
     EditQuestionParams,
     Exam,
     ExamDiscount,
+    ExamWithAnalytics,
     Question,
+    QuestionAssignment,
     QuestionBatch,
     QuestionBatchStatus,
     QuestionWithReason,
@@ -18,12 +20,14 @@ export interface ExamRepository {
     DeleteExam: (id: string) => Promise<void>
     // GetExamDetails: (id: string) => Promise<Exam>
     GetExamById: (id: string) => Promise<Exam>
-    GetExamAnalytics: (id: string) => Promise<Exam>
+    GetExamAnalytics(id: string): Promise<ExamWithAnalytics>
     GetExams: (filter: PaginationFilter) => Promise<{ exams: Exam[], metadata: PaginationMetaData }>
+    GetExamsForUserOrAdmin(filter: PaginationFilter, adminId?: string): Promise<{ exams: any[], metadata: PaginationMetaData }>
     AddExamDiscount: (discount: ExamDiscount) => Promise<void>
     DeleteDiscount: (id: string) => Promise<void>
     GetExamDiscounts: (examId: string) => Promise<ExamDiscount[]>
-
+    GetExamsByIds(examIds: string[], filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }>
+    
     AddCourse: (course: Course) => Promise<Course>
     EditCourseName: (id: string, name: string) => Promise<void>
     DeleteCourse: (id: string) => Promise<void>
@@ -40,7 +44,9 @@ export interface ExamRepository {
     EditQuestion: (questionParams: EditQuestionParams) => Promise<void>
     DeleteQuestion: (id: string) => Promise<void>
     GetQuestionById: (questionId: string) => Promise<Question>
-    GetQuestions: (filter: PaginationFilter) => Promise<{ questions: Question[], metadata: PaginationMetaData }> // filer to include subjectId
+    GetQuestions: (filter: PaginationFilter, adminId?: string) => Promise<{ questions: Question[], metadata: PaginationMetaData }>
+
+    // filer to include subjectId
     GetReportedQuestions: (filter: PaginationFilter) => Promise<{
         questions: QuestionWithReason[],
         metadata: PaginationMetaData
@@ -61,4 +67,8 @@ export interface ExamRepository {
     TagQuestion: (userId: string, questionId: string) => Promise<void>
     UnTagQuestion: (userId: string, questionId: string) => Promise<void>
     ReportQuestion: (userId: string, questionId: string, reason: string) => Promise<void>
+
+    AssignQuestionsToAdmin(adminId: string, range: string, examId?: string): Promise<QuestionAssignment>
+    GetAssignedQuestions(adminId: string, examId?: string): Promise<QuestionAssignment[]>
+    RemoveQuestionAssignment(adminId: string, examId?: string): Promise<void>
 }

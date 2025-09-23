@@ -65,7 +65,7 @@ export class ExamHandler {
             name: name as string | undefined,
         };
 
-        const { exams, metadata } = await this.examServices.queries.getExams.handle(filter);
+        const { exams, metadata } = await this.examServices.queries.getExams.handle(filter, req.admin?.id as string);
 
         new SuccessResponse(res, { exams: exams }, metadata).send();
     }
@@ -255,7 +255,7 @@ export class ExamHandler {
             range: range ? parseRangeList(range as string) : []
         };
 
-        const { questions, metadata } = await this.examServices.queries.getQuestions.handle(filter);
+        const { questions, metadata } = await this.examServices.queries.getQuestions.handle(filter, req.admin?.id as string);
 
         new SuccessResponse(res, { questions: questions }, metadata).send();
     }

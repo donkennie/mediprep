@@ -12,7 +12,9 @@ import {
     QuestionBatchStatus,
     QuestionType,
     QuestionWithReason,
-    Subject
+    Subject,
+    QuestionAssignment,
+    ExamWithAnalytics
 } from "../../../../../domain/exams/exam";
 import * as schema from "../../../../../../../stack/drizzle/schema/exams"
 import {
@@ -26,14 +28,17 @@ import {
     Subject as SubjectT,
     Subjects,
     UserReportQuestionRecords,
-    UserTagQuestionRecords
+    UserTagQuestionRecords,
+    QuestionAssignments,
+    ExamAccess
 } from "../../../../../../../stack/drizzle/schema/exams"
 import { PaginationFilter, PaginationMetaData } from "../../../../../../pkg/types/pagination";
-import { and, count, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { BadRequestError } from "../../../../../../pkg/errors/customError";
 import { PoolClient } from "pg";
 import { UserExamAccess } from "../../../../../../../stack/drizzle/schema/users";
 import { SaleItems } from "../../../../../../../stack/drizzle/schema/sales";
+import { Admins } from "../../../../../../../stack/drizzle/schema/admins";
 
 export class ExamRepositoryDrizzle implements ExamRepository {
     db
@@ -380,68 +385,208 @@ export class ExamRepositoryDrizzle implements ExamRepository {
 
 
     // Get Many
-    async GetExams(filter: PaginationFilter): Promise<{ exams: Exam[], metadata: PaginationMetaData }> {
+    // async GetExams(filter: PaginationFilter): Promise<{ exams: Exam[], metadata: PaginationMetaData }> {
+    //     try {
+    //         const filters: string | any[] = [];
+    //         if (filter.name || filter.name != undefined) {
+    //             filters.push(ilike(Exams.name, `%${filter.name}%`));
+    //         }
+
+    //         // Get the total count of rows
+    //         const totalResult = await this.db.select({ count: count() }).from(Exams).where(and(...filters));
+    //         const total = totalResult[0].count;
+    //         if (total <= 0) {
+    //             return {
+    //                 exams: [], metadata: {
+    //                     total: 0,
+    //                     perPage: filter.limit,
+    //                     currentPage: filter.page
+    //                 }
+    //             }
+    //         }
+
+    //         const query = this.db.select().from(Exams);
+
+    //         if (filters.length > 0) {
+    //             query.where(and(...filters));
+    //         }
+    //         const rows = await query
+    //             .limit(filter.limit)
+    //             .offset((filter.page - 1) * filter.limit);
+    //         if (rows.length > 0) {
+    //             return {
+    //                 exams: rows.map((row) => {
+    //                     return {
+    //                         id: row.id as string,
+    //                         name: row.name as string,
+    //                         description: row.description as string,
+    //                         subscriptionAmount: Number(row.subscriptionAmount),
+    //                         totalMockScores: row.totalMockScores,
+    //                         mocksTaken: row.mocksTaken,
+    //                         mockTestTime: row.mockTestTime,
+    //                         imageURL: row.imageURL as string,
+    //                         createdAt: row.createdAt as Date,
+    //                         updatedAt: row.updatedAt as Date
+    //                     }
+    //                 }), metadata: {
+    //                     total: total,
+    //                     perPage: filter.limit,
+    //                     currentPage: filter.page
+    //                 }
+    //             }
+    //         }
+
+    //         return {
+    //             exams: [], metadata: {
+    //                 total: 0,
+    //                 perPage: filter.limit,
+    //                 currentPage: filter.page
+    //             }
+    //         };
+    //     } catch (error) {
+    //         throw error
+    //     }
+    // }
+
+    async GetExams(filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }> {
         try {
-            const filters: string | any[] = [];
-            if (filter.name || filter.name != undefined) {
-                filters.push(ilike(Exams.name, `%${filter.name}%`));
-            }
-
-            // Get the total count of rows
-            const totalResult = await this.db.select({ count: count() }).from(Exams).where(and(...filters));
-            const total = totalResult[0].count;
-            if (total <= 0) {
-                return {
-                    exams: [], metadata: {
-                        total: 0,
-                        perPage: filter.limit,
-                        currentPage: filter.page
-                    }
-                }
-            }
-
-            const query = this.db.select().from(Exams);
-
-            if (filters.length > 0) {
-                query.where(and(...filters));
-            }
-            const rows = await query
-                .limit(filter.limit)
-                .offset((filter.page - 1) * filter.limit);
-            if (rows.length > 0) {
-                return {
-                    exams: rows.map((row) => {
-                        return {
-                            id: row.id as string,
-                            name: row.name as string,
-                            description: row.description as string,
-                            subscriptionAmount: Number(row.subscriptionAmount),
-                            totalMockScores: row.totalMockScores,
-                            mocksTaken: row.mocksTaken,
-                            mockTestTime: row.mockTestTime,
-                            imageURL: row.imageURL as string,
-                            createdAt: row.createdAt as Date,
-                            updatedAt: row.updatedAt as Date
-                        }
-                    }), metadata: {
-                        total: total,
-                        perPage: filter.limit,
-                        currentPage: filter.page
-                    }
-                }
-            }
-
+          const filters: any[] = [];
+          if (filter.name) {
+            filters.push(ilike(Exams.name, `%${filter.name}%`));
+          }
+    
+          // total
+          const totalResult = await this.db
+            .select({ total: count() })
+            .from(Exams)
+            .where(filters.length > 0 ? and(...filters) : undefined);
+    
+          const total = Number(totalResult[0]?.total ?? 0);
+    
+          if (total <= 0) {
             return {
-                exams: [], metadata: {
-                    total: 0,
-                    perPage: filter.limit,
-                    currentPage: filter.page
-                }
+              exams: [],
+              metadata: { total: 0, perPage: filter.limit, currentPage: filter.page }
             };
+          }
+    
+          const rows = await this.db.select()
+            .from(Exams)
+            .where(filters.length > 0 ? and(...filters) : undefined)
+            .limit(filter.limit)
+            .offset((filter.page - 1) * filter.limit);
+    
+          return {
+            exams: rows.map(this.mapToExam),
+            metadata: {
+              total,
+              perPage: filter.limit,
+              currentPage: filter.page
+            }
+          };
         } catch (error) {
-            throw error
+          throw error;
+        }
+      }
+
+      async GetExamsForUserOrAdmin(
+        filter: PaginationFilter,
+        adminId?: string
+    ): Promise<{ exams: Exam[]; metadata: PaginationMetaData }> {
+        try {
+            let examIds: string[] = [];
+    
+            if (adminId) {
+                // 1. Get admin roles
+                const adminRows = await this.db
+                    .select({ roles: Admins.roles })
+                    .from(Admins)
+                    .where(eq(Admins.id, adminId))
+                    .limit(1);
+    
+                const admin = adminRows[0] ?? null;
+    
+                if (!admin) throw new BadRequestError("Admin not found");
+    
+                const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
+    
+                // 2. Super-admin or admin: get all exams
+                if (rolesArr.includes("admin") || rolesArr.includes("super-admin")) {
+                    return await this.GetExams(filter);
+                }
+    
+                // 3. Exams from ExamAccess
+                const accessRows = await this.db
+                    .select({ examId: ExamAccess.examId })
+                    .from(ExamAccess)
+                    .where(eq(ExamAccess.adminId, adminId));
+    
+                const accessExamIds = accessRows
+                    .map(r => r.examId)
+                    .filter((id): id is string => id !== null);
+    
+                // 4. Exams from QuestionAssignments
+                const assignmentRows = await this.db
+                    .select({ examId: QuestionAssignments.examId })
+                    .from(QuestionAssignments)
+                    .where(eq(QuestionAssignments.adminId, adminId));
+    
+                const assignmentExamIds = assignmentRows
+                    .map(r => r.examId)
+                    .filter((id): id is string => id !== null);
+    
+                // 5. Combine all allowed exam IDs
+                examIds = Array.from(new Set([...accessExamIds, ...assignmentExamIds]));
+            }
+    
+            // 6. If no adminId, or examIds collected, fallback to public/free exams
+            if (!adminId || examIds.length === 0) {
+                const allExams = await this.GetExams(filter);
+                return allExams;
+            }
+    
+            // 7. Fetch exams by IDs using your helper
+            return await this.GetExamsByIds(examIds, filter);
+    
+        } catch (error) {
+            throw error;
         }
     }
+    
+      
+
+      async GetExamsByIds(examIds: string[], filter: PaginationFilter): Promise<{ exams: any[], metadata: PaginationMetaData }> {
+        try {
+          if (!examIds || examIds.length === 0) {
+            return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+          }
+    
+          const totalResult = await this.db
+            .select({ total: count() })
+            .from(Exams)
+            .where(inArray(Exams.id, examIds));
+    
+          const total = Number(totalResult[0]?.total ?? 0);
+    
+          if (total <= 0) {
+            return { exams: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+          }
+    
+          const rows = await this.db.select()
+            .from(Exams)
+            .where(inArray(Exams.id, examIds))
+            .limit(filter.limit)
+            .offset((filter.page - 1) * filter.limit);
+    
+          return {
+            exams: rows.map(this.mapToExam),
+            metadata: { total, perPage: filter.limit, currentPage: filter.page }
+          };
+        } catch (error) {
+          throw error;
+        }
+      }
+    
 
     async GetExamDiscounts(examID: string): Promise<ExamDiscount[]> {
         try {
@@ -586,95 +731,205 @@ export class ExamRepositoryDrizzle implements ExamRepository {
         }
     }
 
-    async GetQuestions(filter: PaginationFilter): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
+    // async GetQuestions(filter: PaginationFilter): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
+    //     try {
+    //         const filters: string | any[] = [];
+
+    //         if (filter.subjectId || filter.subjectId != undefined) {
+    //             filters.push(eq(Questions.subjectId, filter.subjectId as string));
+
+    //         }
+    //         if (filter.courseId || filter.courseId != undefined) {
+    //             filters.push(eq(Questions.courseId, filter.courseId as string));
+
+    //         }
+    //         if (filter.examId || filter.examId != undefined) {
+    //             filters.push(eq(Questions.examId, filter.examId as string));
+
+    //         }
+
+    //         if (filter.range && filter.range.length > 0) {
+    //             (filter.examId || filter.examId != undefined) ? filters.push(inArray(Questions.examQuestionNumber, filter.range)) : filters.push(inArray(Questions.questionNumber, filter.range));
+    //         }
+
+
+    //         if (filter.free || filter.free != undefined) {
+    //             filters.push(eq(Questions.free, filter.free as boolean));
+    //         }
+
+    //         // Get the total count of rows
+    //         const totalResult = await this.db.select({ count: count() }).from(Questions).where(and(...filters));
+    //         const total = totalResult[0].count;
+    //         if (total <= 0) {
+    //             return {
+    //                 questions: [], metadata: {
+    //                     total: 0,
+    //                     perPage: filter.limit,
+    //                     currentPage: filter.page
+    //                 }
+    //             }
+    //         }
+
+    //         const questions = await this.db.query.Questions.findMany({
+    //             where: and(...filters),
+    //             with: {
+    //                 options: true
+    //             },
+    //             orderBy: filter.random ? sql`RANDOM
+    //             ()` : sql`question_number ASC`,
+    //             limit: filter.limit,
+    //             offset: (filter.page - 1) * filter.limit,
+    //         })
+    //         if (questions.length > 0) {
+    //             return {
+    //                 questions: questions.map((question: any): Question => {
+    //                     return {
+    //                         id: question.id as string,
+    //                         questionNumber: question.questionNumber,
+    //                         examQuestionNumber: question.examQuestionNumber,
+    //                         type: question.type as QuestionType,
+    //                         explanation: question.explanation as string,
+    //                         question: question.question as string,
+    //                         options: question.options?.map((option: any): Option => {
+    //                             return {
+    //                                 index: option.index,
+    //                                 value: option.value,
+    //                                 selected: option.selected,
+    //                                 answer: option.answer,
+    //                             }
+    //                         })
+    //                     }
+    //                 }), metadata: {
+    //                     total: total,
+    //                     perPage: filter.limit,
+    //                     currentPage: filter.page
+    //                 }
+    //             }
+    //         }
+
+
+    //         return {
+    //             questions: [], metadata: {
+    //                 total: 0,
+    //                 perPage: filter.limit,
+    //                 currentPage: filter.page
+    //             }
+    //         };
+    //     } catch
+    //     (error) {
+    //         throw error
+    //     }
+    // }
+
+    async GetQuestions(
+        filter: PaginationFilter,
+        adminId?: string
+    ): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
         try {
-            const filters: string | any[] = [];
-
-            if (filter.subjectId || filter.subjectId != undefined) {
-                filters.push(eq(Questions.subjectId, filter.subjectId as string));
-
+            let allowedExamIds: string[] = [];
+    
+            if (adminId) {
+                // 1. Get admin roles
+                const adminRows = await this.db
+                    .select({ roles: Admins.roles })
+                    .from(Admins)
+                    .where(eq(Admins.id, adminId))
+                    .limit(1);
+    
+                const admin = adminRows[0] ?? null;
+                if (!admin) throw new BadRequestError("Admin not found");
+    
+                const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
+    
+                // 2. If not super-admin/admin, get exams from assignments AND access
+                if (!rolesArr.includes("admin") && !rolesArr.includes("super-admin")) {
+                    const [assignmentRows, accessRows] = await Promise.all([
+                        this.db.select({ examId: QuestionAssignments.examId })
+                            .from(QuestionAssignments)
+                            .where(eq(QuestionAssignments.adminId, adminId)),
+                        this.db.select({ examId: ExamAccess.examId })
+                            .from(ExamAccess)
+                            .where(eq(ExamAccess.adminId, adminId))
+                    ]);
+    
+                    const assignmentExamIds = assignmentRows.map(a => a.examId).filter(Boolean);
+                    const accessExamIds = accessRows.map(a => a.examId).filter(Boolean);
+    
+                    allowedExamIds = Array.from(new Set([...assignmentExamIds, ...accessExamIds])) as string[];
+    
+                    if (allowedExamIds.length === 0) {
+                        return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+                    }
+    
+                    // If a filter.examId is provided, ensure it's within allowedExamIds
+                    if (filter.examId && !allowedExamIds.includes(filter.examId)) {
+                        return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+                    }
+    
+                    if (filter.examId) allowedExamIds = [filter.examId];
+                }
+            } else if (filter.examId) {
+                // public/free access mode
+                allowedExamIds = [filter.examId];
             }
-            if (filter.courseId || filter.courseId != undefined) {
-                filters.push(eq(Questions.courseId, filter.courseId as string));
-
-            }
-            if (filter.examId || filter.examId != undefined) {
-                filters.push(eq(Questions.examId, filter.examId as string));
-
-            }
-
+    
+            // 3. Build filters
+            const filters: any[] = [];
+            if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
+            if (filter.courseId) filters.push(eq(Questions.courseId, filter.courseId));
+            if (allowedExamIds.length > 0) filters.push(inArray(Questions.examId, allowedExamIds));
             if (filter.range && filter.range.length > 0) {
-                (filter.examId || filter.examId != undefined) ? filters.push(inArray(Questions.examQuestionNumber, filter.range)) : filters.push(inArray(Questions.questionNumber, filter.range));
+                filters.push(
+                    filter.examId ? inArray(Questions.examQuestionNumber, filter.range)
+                                  : inArray(Questions.questionNumber, filter.range)
+                );
             }
-
-
-            if (filter.free || filter.free != undefined) {
-                filters.push(eq(Questions.free, filter.free as boolean));
-            }
-
-            // Get the total count of rows
-            const totalResult = await this.db.select({ count: count() }).from(Questions).where(and(...filters));
+            if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
+    
+            // 4. Total
+            const totalResult = await this.db
+                .select({ count: count() })
+                .from(Questions)
+                .where(filters.length > 0 ? and(...filters) : undefined);
             const total = totalResult[0].count;
-            if (total <= 0) {
-                return {
-                    questions: [], metadata: {
-                        total: 0,
-                        perPage: filter.limit,
-                        currentPage: filter.page
-                    }
-                }
-            }
-
+    
+            if (total === 0) return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+    
+            // 5. Fetch questions
             const questions = await this.db.query.Questions.findMany({
-                where: and(...filters),
-                with: {
-                    options: true
-                },
-                orderBy: filter.random ? sql`RANDOM
-                ()` : sql`question_number ASC`,
+                where: filters.length > 0 ? and(...filters) : undefined,
+                with: { options: true },
+                orderBy: filter.random ? sql`RANDOM()` : sql`question_number ASC`,
                 limit: filter.limit,
-                offset: (filter.page - 1) * filter.limit,
-            })
-            if (questions.length > 0) {
-                return {
-                    questions: questions.map((question: any): Question => {
-                        return {
-                            id: question.id as string,
-                            questionNumber: question.questionNumber,
-                            examQuestionNumber: question.examQuestionNumber,
-                            type: question.type as QuestionType,
-                            explanation: question.explanation as string,
-                            question: question.question as string,
-                            options: question.options?.map((option: any): Option => {
-                                return {
-                                    index: option.index,
-                                    value: option.value,
-                                    selected: option.selected,
-                                    answer: option.answer,
-                                }
-                            })
-                        }
-                    }), metadata: {
-                        total: total,
-                        perPage: filter.limit,
-                        currentPage: filter.page
-                    }
-                }
-            }
-
-
+                offset: (filter.page - 1) * filter.limit
+            });
+    
+            // 6. Map and return
             return {
-                questions: [], metadata: {
-                    total: 0,
-                    perPage: filter.limit,
-                    currentPage: filter.page
-                }
+                questions: questions.map((q: any): Question => ({
+                    id: q.id!,
+                    questionNumber: q.questionNumber,
+                    examQuestionNumber: q.examQuestionNumber,
+                    type: q.type,
+                    explanation: q.explanation,
+                    question: q.question,
+                    options: q.options?.map((o: any): Option => ({
+                        index: o.index,
+                        value: o.value,
+                        selected: o.selected,
+                        answer: o.answer
+                    }))
+                })),
+                metadata: { total, perPage: filter.limit, currentPage: filter.page }
             };
-        } catch
-        (error) {
-            throw error
+    
+        } catch (error) {
+            throw error;
         }
     }
+    
+    
+    
 
     async GetQuestionBatches(filter: PaginationFilter): Promise<{
         questionBatches: QB[],
@@ -761,17 +1016,27 @@ export class ExamRepositoryDrizzle implements ExamRepository {
         }
     }
 
-    async GetExamAnalytics(id: string): Promise<Exam> {
+    async GetExamAnalytics(id: string): Promise<ExamWithAnalytics> {
         try {
-            const examResult = await this.db.select().from(Exams).where(eq(Exams.id, id))
+            const examResult = await this.db.select().from(Exams).where(eq(Exams.id, id));
             if (examResult.length < 1) {
-                throw new BadRequestError(`exam with id '${id}' does not exist`)
+                throw new BadRequestError(`exam with id '${id}' does not exist`);
             }
-            let exam = examResult[0]
-            const subjects = await this.db.select().from(Subjects).where(eq(Subjects.examId, id))
-            const courses = await this.db.select().from(Courses).where(eq(Courses.examId, id))
-            const users = await this.db.select().from(UserExamAccess).where(eq(UserExamAccess.examId, id))
-            const sales = await this.db.select().from(SaleItems).where(eq(SaleItems.examID, id))
+
+            const exam = examResult[0];
+
+            // Get related data
+            const subjects = await this.db.select().from(Subjects).where(eq(Subjects.examId, id));
+            const courses = await this.db.select().from(Courses).where(eq(Courses.examId, id));
+            const userAccesses = await this.db.select({ 
+                userId: UserExamAccess.userId, 
+                expiryDate: UserExamAccess.expiryDate 
+            })
+            .from(UserExamAccess)
+            .where(eq(UserExamAccess.examId, id));
+            
+            const sales = await this.db.select().from(SaleItems).where(eq(SaleItems.examID, id));
+
             return {
                 id: exam.id as string,
                 name: exam.name as string,
@@ -781,15 +1046,29 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 mocksTaken: exam.mocksTaken,
                 mockTestTime: exam.mockTestTime,
                 imageURL: exam.imageURL as string,
+                mockQuestions: exam.mockQuestions,
                 createdAt: exam.createdAt as Date,
                 updatedAt: exam.updatedAt as Date,
                 subjectsNo: subjects.length,
                 coursesNo: courses.length,
-                usersNo: users.length,
-                salesNo: sales.length
-            }
+                usersNo: userAccesses.length,
+                salesNo: sales.length,
+                userAccesses: userAccesses.map(u => {
+                    const expiryDate = u.expiryDate;
+                    const now = new Date();
+                    const isExpired = expiryDate < now;
+                    const daysRemaining = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    return {
+                        userId: u.userId,
+                        expiryDate: u.expiryDate,
+                        isExpired,
+                        daysRemaining: isExpired ? 0 : daysRemaining
+                    };
+                })
+            };
         } catch (error) {
-            throw error
+            throw error;
         }
     }
 
@@ -1048,6 +1327,85 @@ export class ExamRepositoryDrizzle implements ExamRepository {
         }
     }
 
+
+    async AssignQuestionsToAdmin(
+        adminId: string,
+        range: string,
+        examId?: string,
+      ): Promise<QuestionAssignment> {
+        const [assignment] = await this.db
+          .insert(QuestionAssignments)
+          .values({
+            adminId,
+            examId: examId || null,
+            questionRange: range,
+          })
+          .returning();
+      
+        return {
+          id: assignment.id!,
+          adminId: assignment.adminId,
+          examId: assignment.examId ?? undefined,
+          questionRange: assignment.questionRange,
+          assignedAt: assignment.assignedAt
+        };
+      }
+      
+
+    async GetAssignedQuestions(adminId: string, examId?: string): Promise<QuestionAssignment[]> {
+        try {
+          const whereCondition = examId
+            ? and(eq(QuestionAssignments.adminId, adminId), eq(QuestionAssignments.examId, examId))
+            : eq(QuestionAssignments.adminId, adminId);
+    
+          const rows = await this.db.select()
+            .from(QuestionAssignments)
+            .where(whereCondition);
+    
+          // normalize null -> undefined
+          return rows.map((a: any) => ({
+            id: a.id ?? undefined,
+            adminId: a.adminId,
+            examId: a.examId ?? undefined,
+            questionRange: a.questionRange,
+            assignedAt: a.assignedAt,
+            createdAt: a.createdAt ?? undefined,
+            updatedAt: a.updatedAt ?? undefined,
+          }));
+        } catch (error) {
+          throw error;
+        }
+      }
+
+    async RemoveQuestionAssignment(adminId: string, examId?: string): Promise<void> {
+        try {
+            const whereCondition = examId
+                ? and(eq(QuestionAssignments.adminId, adminId), eq(QuestionAssignments.examId, examId))
+                : eq(QuestionAssignments.adminId, adminId);
+    
+            await this.db.delete(QuestionAssignments).where(whereCondition);
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+    private mapToExam(row: typeof Exams.$inferSelect): Exam {
+        return {
+            id: row.id as string,
+            name: row.name ?? "",
+            description: row.description,
+            subscriptionAmount: Number(row.subscriptionAmount),
+            imageURL: row.imageURL || undefined,
+            mockQuestions: row.mockQuestions,
+            totalMockScores: row.totalMockScores,
+            mocksTaken: row.mocksTaken,
+            mockTestTime: row.mockTestTime,
+            createdAt: row.createdAt as Date,
+            updatedAt: row.updatedAt as Date,
+        };
+    }
+    
 
 }
 

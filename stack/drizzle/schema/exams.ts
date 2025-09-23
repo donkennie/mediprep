@@ -57,7 +57,8 @@ export const examRelations = relations(Exams, ({ many }) => ({
     discounts: many(ExamDiscounts),
     sales: many(Sales),
     questions: many(Questions),
-    questionBatches: many(QuestionBatch)
+    questionBatches: many(QuestionBatch),
+    questionAssignments: many(QuestionAssignments),
 }));
 
 export const ExamDiscounts = pgTable('discounts', {
@@ -301,3 +302,28 @@ export const userReportQuestionRecordsRelation = relations(UserReportQuestionRec
         references: [Exams.id]
     }),
 }))
+
+
+export const QuestionAssignments = pgTable('question_assignments', {
+    id: uuid('id').defaultRandom(),
+    adminId: uuid('admin_id').notNull().references(() => Admins.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    examId: uuid('exam_id').references(() => Exams.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    questionRange: varchar('question_range').notNull(),
+    assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (t) => ({
+    pk: primaryKey({ columns: [t.id] }),
+}))
+
+
+export const questionAssignmentRelations = relations(QuestionAssignments, ({ one }) => ({
+    admin: one(Admins, {
+        fields: [QuestionAssignments.adminId],
+        references: [Admins.id],
+    }),
+    exam: one(Exams, {
+        fields: [QuestionAssignments.examId],
+        references: [Exams.id],
+    }),
+}));

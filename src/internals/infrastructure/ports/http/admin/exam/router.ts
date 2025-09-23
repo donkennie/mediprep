@@ -58,7 +58,7 @@ export class ExamRouter {
             ValidationMiddleware(addExamSchema, "body"),
             this.handler.addExamHandler
         ).get(
-            CheckPermission("read_exam"),
+            //CheckPermission("read_exam"),
             ValidationMiddleware(getCommandFilterSchema, "query"),
             this.handler.getExamsHandler
         )
@@ -124,7 +124,7 @@ export class ExamRouter {
             ValidationMiddleware(questionSchema, "body"),
             this.handler.addQuestionHandler
         ).get(
-            CheckPermission("read_exam"),
+            // CheckPermission("read_exam"),
             ValidationMiddleware(getCommandFilterSchema, "query"),
             this.handler.getQuestionsHandler
         )
@@ -162,7 +162,7 @@ export class ExamRouter {
             ValidationMiddleware(examIdSchema, "params"),
             this.handler.deleteExamHandler
         ).get(
-            CheckPermission("read_exam"),
+            // CheckPermission("read_exam"),
             this.handler.getExamDetails
         )
         this.router.route('/:id/image').patch(

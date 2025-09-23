@@ -3,7 +3,7 @@ import {Question} from "../../../domain/exams/exam";
 import {ExamRepository} from "../../../domain/exams/repository";
 
 export interface GetQuestionsQuery {
-    handle: (filter: PaginationFilter) => Promise<{
+    handle: (filter: PaginationFilter, adminId?: string) => Promise<{
         questions
             : Question[], metadata: PaginationMetaData
     }>
@@ -16,7 +16,7 @@ export class GetQuestionsQueryC implements GetQuestionsQuery {
         this.examRepository = examRepository;
     }
 
-    handle = async (filter: PaginationFilter): Promise<{
+    handle = async (filter: PaginationFilter, adminId?: string): Promise<{
         questions
             : Question[], metadata: PaginationMetaData
     }> => {
@@ -25,7 +25,8 @@ export class GetQuestionsQueryC implements GetQuestionsQuery {
                 questions
                 , metadata
             } = await this.examRepository.GetQuestions(
-                filter
+                filter,
+                adminId
             );
             return {
                 questions

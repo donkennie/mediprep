@@ -23,6 +23,7 @@ export class Services {
         this.AdminServices = new AdminServices(
             adapter.AdminRepository,
             adapter.QueueRepository,
+            adapter.ExamRepository,
             environmentVariables
         );
         this.EmailServices = new EmailServices(adapter.EmailRepository);
