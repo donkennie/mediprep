@@ -821,13 +821,149 @@ export class ExamRepositoryDrizzle implements ExamRepository {
     //     }
     // }
 
+    // async GetQuestions(
+    //     filter: PaginationFilter,
+    //     adminId?: string
+    // ): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
+    //     try {
+    //         let allowedExamIds: string[] = [];
+
+    //         if (adminId) {
+    //             // 1. Get admin roles
+    //             const adminRows = await this.db
+    //                 .select({ roles: Admins.roles })
+    //                 .from(Admins)
+    //                 .where(eq(Admins.id, adminId))
+    //                 .limit(1);
+
+    //             const admin = adminRows[0] ?? null;
+    //             if (!admin) throw new BadRequestError("Admin not found");
+
+    //             const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
+
+    //             // 2. If not super-admin/admin, get exams from assignments AND access
+    //             if (!rolesArr.includes("admin") && !rolesArr.includes("super-admin")) {
+    //                 const [assignmentRows, accessRows] = await Promise.all([
+    //                     this.db.select({ examId: QuestionAssignments.examId })
+    //                         .from(QuestionAssignments)
+    //                         .where(eq(QuestionAssignments.adminId, adminId)),
+    //                     this.db.select({ examId: ExamAccess.examId })
+    //                         .from(ExamAccess)
+    //                         .where(eq(ExamAccess.adminId, adminId))
+    //                 ]);
+
+    //                 const assignmentExamIds = assignmentRows.map(a => a.examId).filter(Boolean);
+    //                 const accessExamIds = accessRows.map(a => a.examId).filter(Boolean);
+
+    //                 allowedExamIds = Array.from(new Set([...assignmentExamIds, ...accessExamIds])) as string[];
+
+    //                 if (allowedExamIds.length === 0) {
+    //                     return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+    //                 }
+
+    //                 // If a filter.examId is provided, ensure it's within allowedExamIds
+    //                 if (filter.examId && !allowedExamIds.includes(filter.examId)) {
+    //                     return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+    //                 }
+
+    //                 // NEW: If range is specified, examId should be required
+    //                 if (filter.range && filter.range.length > 0 && allowedExamIds.length === 0) {
+    //                     throw new BadRequestError("examId is required when filtering by question range");
+    //                 }
+
+    //                 if (filter.examId) allowedExamIds = [filter.examId];
+    //             }
+    //         } else if (filter.examId) {
+    //             // public/free access mode
+    //             allowedExamIds = [filter.examId];
+    //         }
+
+    //         // // 3. Build filters
+    //         // const filters: any[] = [];
+    //         // if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
+    //         // if (filter.courseId) filters.push(eq(Questions.courseId, filter.courseId));
+    //         // if (allowedExamIds.length > 0) filters.push(inArray(Questions.examId, allowedExamIds));
+    //         // if (filter.range && filter.range.length > 0) {
+    //         //     filters.push(
+    //         //         filter.examId ? inArray(Questions.examQuestionNumber, filter.range)
+    //         //             : inArray(Questions.questionNumber, filter.range)
+    //         //     );
+    //         // }
+    //         // if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
+
+    //         // 3. Build filters
+    //         const filters: any[] = [];
+    //         if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
+    //         if (filter.courseId) filters.push(eq(Questions.courseId, filter.courseId));
+
+    //         // Track if we're filtering by specific exam(s)
+    //         const isExamSpecific = allowedExamIds.length > 0;
+
+    //         if (isExamSpecific) {
+    //             filters.push(inArray(Questions.examId, allowedExamIds));
+    //         }
+
+    //         if (filter.range && filter.range.length > 0) {
+    //             // Use examQuestionNumber when filtering by specific exam(s)
+    //             // Use questionNumber only when querying across ALL questions globally
+    //             filters.push(
+    //                 isExamSpecific
+    //                     ? inArray(Questions.examQuestionNumber, filter.range)
+    //                     : inArray(Questions.questionNumber, filter.range)
+    //             );
+    //         }
+
+    //         if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
+
+    //         // 4. Total
+    //         const totalResult = await this.db
+    //             .select({ count: count() })
+    //             .from(Questions)
+    //             .where(filters.length > 0 ? and(...filters) : undefined);
+    //         const total = totalResult[0].count;
+
+    //         if (total === 0) return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+
+    //         // 5. Fetch questions
+    //         const questions = await this.db.query.Questions.findMany({
+    //             where: filters.length > 0 ? and(...filters) : undefined,
+    //             with: { options: true },
+    //             orderBy: filter.random ? sql`RANDOM()` : sql`question_number ASC`,
+    //             limit: filter.limit,
+    //             offset: (filter.page - 1) * filter.limit
+    //         });
+
+    //         // 6. Map and return
+    //         return {
+    //             questions: questions.map((q: any): Question => ({
+    //                 id: q.id!,
+    //                 questionNumber: q.questionNumber,
+    //                 examQuestionNumber: q.examQuestionNumber,
+    //                 type: q.type,
+    //                 explanation: q.explanation,
+    //                 question: q.question,
+    //                 options: q.options?.map((o: any): Option => ({
+    //                     index: o.index,
+    //                     value: o.value,
+    //                     selected: o.selected,
+    //                     answer: o.answer
+    //                 }))
+    //             })),
+    //             metadata: { total, perPage: filter.limit, currentPage: filter.page }
+    //         };
+
+    //     } catch (error) {
+    //         throw error;
+    //     }
+    // }
+
     async GetQuestions(
         filter: PaginationFilter,
         adminId?: string
     ): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
         try {
             let allowedExamIds: string[] = [];
-
+    
             if (adminId) {
                 // 1. Get admin roles
                 const adminRows = await this.db
@@ -835,13 +971,12 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     .from(Admins)
                     .where(eq(Admins.id, adminId))
                     .limit(1);
-
+    
                 const admin = adminRows[0] ?? null;
                 if (!admin) throw new BadRequestError("Admin not found");
-
+    
                 const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
 
-                // 2. If not super-admin/admin, get exams from assignments AND access
                 if (!rolesArr.includes("admin") && !rolesArr.includes("super-admin")) {
                     const [assignmentRows, accessRows] = await Promise.all([
                         this.db.select({ examId: QuestionAssignments.examId })
@@ -851,60 +986,74 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                             .from(ExamAccess)
                             .where(eq(ExamAccess.adminId, adminId))
                     ]);
-
+    
                     const assignmentExamIds = assignmentRows.map(a => a.examId).filter(Boolean);
                     const accessExamIds = accessRows.map(a => a.examId).filter(Boolean);
-
+    
                     allowedExamIds = Array.from(new Set([...assignmentExamIds, ...accessExamIds])) as string[];
-
+    
                     if (allowedExamIds.length === 0) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-
-                    // If a filter.examId is provided, ensure it's within allowedExamIds
+    
                     if (filter.examId && !allowedExamIds.includes(filter.examId)) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-
+    
                     if (filter.examId) allowedExamIds = [filter.examId];
                 }
             } else if (filter.examId) {
-                // public/free access mode
                 allowedExamIds = [filter.examId];
             }
-
-            // 3. Build filters
+    
+            if (filter.range && filter.range.length > 0 && allowedExamIds.length === 0) {
+                throw new BadRequestError("examId is required when filtering by question range");
+            }
+    
+            if (filter.range && filter.range.length > 0 && allowedExamIds.length > 1) {
+                throw new BadRequestError("Question range filtering requires a single examId");
+            }
+    
             const filters: any[] = [];
             if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
             if (filter.courseId) filters.push(eq(Questions.courseId, filter.courseId));
-            if (allowedExamIds.length > 0) filters.push(inArray(Questions.examId, allowedExamIds));
+    
+            const isExamSpecific = allowedExamIds.length > 0;
+    
+            if (isExamSpecific) {
+                filters.push(inArray(Questions.examId, allowedExamIds));
+            }
+    
             if (filter.range && filter.range.length > 0) {
                 filters.push(
-                    filter.examId ? inArray(Questions.examQuestionNumber, filter.range)
+                    isExamSpecific
+                        ? inArray(Questions.examQuestionNumber, filter.range)
                         : inArray(Questions.questionNumber, filter.range)
                 );
             }
+    
             if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
 
-            // 4. Total
             const totalResult = await this.db
                 .select({ count: count() })
                 .from(Questions)
                 .where(filters.length > 0 ? and(...filters) : undefined);
             const total = totalResult[0].count;
-
-            if (total === 0) return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
-
-            // 5. Fetch questions
+    
+            if (total === 0) {
+                return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
+            }
+    
             const questions = await this.db.query.Questions.findMany({
                 where: filters.length > 0 ? and(...filters) : undefined,
                 with: { options: true },
-                orderBy: filter.random ? sql`RANDOM()` : sql`question_number ASC`,
+                orderBy: filter.random ? sql`RANDOM()` : (
+                    isExamSpecific ? sql`exam_question_number ASC` : sql`question_number ASC`
+                ),
                 limit: filter.limit,
                 offset: (filter.page - 1) * filter.limit
             });
-
-            // 6. Map and return
+    
             return {
                 questions: questions.map((q: any): Question => ({
                     id: q.id!,
@@ -922,7 +1071,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 })),
                 metadata: { total, perPage: filter.limit, currentPage: filter.page }
             };
-
+    
         } catch (error) {
             throw error;
         }
@@ -1022,33 +1171,33 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 .select()
                 .from(Exams)
                 .where(eq(Exams.id, id));
-    
+
             if (examResult.length < 1) {
                 throw new BadRequestError(`exam with id '${id}' does not exist`);
             }
-    
+
             const exam = examResult[0];
-    
+
             const subjects = await this.db
                 .select()
                 .from(Subjects)
                 .where(eq(Subjects.examId, id));
-    
+
             const courses = await this.db
                 .select()
                 .from(Courses)
                 .where(eq(Courses.examId, id));
-    
+
             const users = await this.db
                 .select()
                 .from(UserExamAccess)
                 .where(eq(UserExamAccess.examId, id));
-    
+
             const sales = await this.db
                 .select()
                 .from(SaleItems)
                 .where(eq(SaleItems.examID, id));
-    
+
             return {
                 id: exam.id as string,
                 name: exam.name as string,
@@ -1069,7 +1218,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
             throw error;
         }
     }
-    
+
 
     async GetCourseById(courseId: string): Promise<Course> {
         try {
