@@ -21,7 +21,7 @@ export type PaginationFilter = {
     random?: boolean;
     testType?: TestType;
     questionStatus?: "unanswered" | "correct" | "wrong"
-    range?: number[];
+    range?: string | number[];
 };
 
 export type PaginationMetaData = {

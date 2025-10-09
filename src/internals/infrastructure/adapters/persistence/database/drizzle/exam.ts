@@ -963,7 +963,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
     ): Promise<{ questions: Question[], metadata: PaginationMetaData }> {
         try {
             let allowedExamIds: string[] = [];
-    
+
             if (adminId) {
                 // 1. Get admin roles
                 const adminRows = await this.db
@@ -971,10 +971,10 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                     .from(Admins)
                     .where(eq(Admins.id, adminId))
                     .limit(1);
-    
+
                 const admin = adminRows[0] ?? null;
                 if (!admin) throw new BadRequestError("Admin not found");
-    
+
                 const rolesArr: string[] = Array.isArray(admin.roles) ? admin.roles : [];
 
                 if (!rolesArr.includes("admin") && !rolesArr.includes("super-admin")) {
@@ -986,52 +986,73 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                             .from(ExamAccess)
                             .where(eq(ExamAccess.adminId, adminId))
                     ]);
-    
+
                     const assignmentExamIds = assignmentRows.map(a => a.examId).filter(Boolean);
                     const accessExamIds = accessRows.map(a => a.examId).filter(Boolean);
-    
+
                     allowedExamIds = Array.from(new Set([...assignmentExamIds, ...accessExamIds])) as string[];
-    
+
                     if (allowedExamIds.length === 0) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-    
+
                     if (filter.examId && !allowedExamIds.includes(filter.examId)) {
                         return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
                     }
-    
+
                     if (filter.examId) allowedExamIds = [filter.examId];
                 }
             } else if (filter.examId) {
                 allowedExamIds = [filter.examId];
             }
-    
-            if (filter.range && filter.range.length > 0 && allowedExamIds.length === 0) {
+
+            let parsedRange: number[] | undefined;
+            if (filter.range) {
+                if (typeof filter.range === 'string') {
+                    const match = filter.range.match(/^(\d+)-(\d+)$/);
+                    if (match) {
+                        const start = parseInt(match[1], 10);
+                        const end = parseInt(match[2], 10);
+
+                        if (start > end) {
+                            throw new BadRequestError("Invalid range: start must be less than or equal to end");
+                        }
+
+                        parsedRange = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                    } else {
+                        throw new BadRequestError("Invalid range format. Use 'start-end' (e.g., '1-10')");
+                    }
+                } else if (Array.isArray(filter.range)) {
+                    parsedRange = filter.range;
+                }
+            }
+
+            if (parsedRange && parsedRange.length > 0 && allowedExamIds.length === 0) {
                 throw new BadRequestError("examId is required when filtering by question range");
             }
-    
-            if (filter.range && filter.range.length > 0 && allowedExamIds.length > 1) {
+
+            if (parsedRange && parsedRange.length > 0 && allowedExamIds.length > 1) {
                 throw new BadRequestError("Question range filtering requires a single examId");
             }
-    
+
             const filters: any[] = [];
             if (filter.subjectId) filters.push(eq(Questions.subjectId, filter.subjectId));
             if (filter.courseId) filters.push(eq(Questions.courseId, filter.courseId));
-    
+
             const isExamSpecific = allowedExamIds.length > 0;
-    
+
             if (isExamSpecific) {
                 filters.push(inArray(Questions.examId, allowedExamIds));
             }
-    
-            if (filter.range && filter.range.length > 0) {
+
+            if (parsedRange && parsedRange.length > 0) {
                 filters.push(
                     isExamSpecific
-                        ? inArray(Questions.examQuestionNumber, filter.range)
-                        : inArray(Questions.questionNumber, filter.range)
+                        ? inArray(Questions.examQuestionNumber, parsedRange)
+                        : inArray(Questions.questionNumber, parsedRange)
                 );
             }
-    
+
             if (filter.free !== undefined) filters.push(eq(Questions.free, filter.free));
 
             const totalResult = await this.db
@@ -1039,11 +1060,11 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 .from(Questions)
                 .where(filters.length > 0 ? and(...filters) : undefined);
             const total = totalResult[0].count;
-    
+
             if (total === 0) {
                 return { questions: [], metadata: { total: 0, perPage: filter.limit, currentPage: filter.page } };
             }
-    
+
             const questions = await this.db.query.Questions.findMany({
                 where: filters.length > 0 ? and(...filters) : undefined,
                 with: { options: true },
@@ -1053,7 +1074,7 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 limit: filter.limit,
                 offset: (filter.page - 1) * filter.limit
             });
-    
+
             return {
                 questions: questions.map((q: any): Question => ({
                     id: q.id!,
@@ -1071,14 +1092,11 @@ export class ExamRepositoryDrizzle implements ExamRepository {
                 })),
                 metadata: { total, perPage: filter.limit, currentPage: filter.page }
             };
-    
+
         } catch (error) {
             throw error;
         }
     }
-
-
-
 
     async GetQuestionBatches(filter: PaginationFilter): Promise<{
         questionBatches: QB[],
