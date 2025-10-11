@@ -350,27 +350,70 @@ export class ExamRepositoryDrizzle implements ExamRepository {
     async EditQuestion(questionParams: EditQuestionParams): Promise<void> {
         try {
             await this.db.transaction(async (tx) => {
-                try {
-                    const updatedQuestion = await tx.update(Questions).set(questionParams).where(eq(Questions.id, questionParams.id as string)).returning({ id: Questions.id })
-                    if (updatedQuestion.length < 1) throw new BadRequestError(`question with id '${questionParams.id}' does not exist`)
-                    if (questionParams.options != undefined && questionParams.options.length > 0) {
-                        for await (let option of questionParams.options) {
-                            await tx.update(Options).set(option).where(and(eq(Options.index, option.index), eq(Options.questionId, questionParams.id as string)))
-                        }
-                    }
-                    return
-                } catch (error) {
-                    try {
-                        tx.rollback()
-                    } catch (e) {
-                        throw error
-                    }
+                const { options, ...questionData } = questionParams;
+                
+                const updatedQuestion = await tx
+                    .update(Questions)
+                    .set(questionData)
+                    .where(eq(Questions.id, questionParams.id as string))
+                    .returning({ id: Questions.id });
+                
+                if (updatedQuestion.length < 1) {
+                    throw new BadRequestError(`Question with id '${questionParams.id}' does not exist`);
                 }
-            })
+                
+                if (Array.isArray(options) && options.length > 0) {
+                    const existingOptions = await tx
+                        .select()
+                        .from(Options)
+                        .where(eq(Options.questionId, questionParams.id as string));
+                    
+                    const incomingIndices = new Set(options.map(opt => opt.index));
+                    
+                    await Promise.all(options.map(async (option) => {
+                        const existing = existingOptions.find(opt => opt.index === option.index);
+                        
+                        if (existing && existing.id) {
+                            await tx
+                                .update(Options)
+                                .set({
+                                    index: option.index,
+                                    value: option.value,
+                                    answer: option.answer,
+                                })
+                                .where(eq(Options.id, existing.id));
+                        } else {
+                            await tx
+                                .insert(Options)
+                                .values({
+                                    index: option.index,
+                                    value: option.value,
+                                    answer: option.answer,
+                                    questionId: questionParams.id as string,
+                                } as any); 
+                        }
+                    }));
+                    
+                    const optionsToDelete = existingOptions.filter(opt => !incomingIndices.has(opt.index));
+                    
+                    if (optionsToDelete.length > 0) {
+                        await Promise.all(
+                            optionsToDelete.map(async (opt) => {
+                                if (opt.id) {
+                                    await tx.delete(Options).where(eq(Options.id, opt.id));
+                                }
+                            })
+                        );
+                    }
+                } else if (options !== undefined && options.length === 0) {
+                    await tx.delete(Options).where(eq(Options.questionId, questionParams.id as string));
+                }
+            });
         } catch (error) {
-            throw error
+            throw error;
         }
     }
+    
 
     async UpdateQuestionBatchStatus(id: string, status: QuestionBatchStatus): Promise<void> {
         try {

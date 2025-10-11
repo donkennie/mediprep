@@ -39,7 +39,7 @@ export const AdminRoles: AdminRole[] = [
     // Able to create, update, and delete exams
     {
         name: "examiner",
-        permissions: ["create_exam", "read_exam", "edit_exam", "delete_exam"],
+        permissions: ["create_exam", "read_exam", "edit_exam"],
     },
     {
         name: "hr",
