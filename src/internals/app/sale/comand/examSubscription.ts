@@ -88,9 +88,11 @@ export class ExamSubscribeC implements ExamSubscribe {
         }
     }
 
-    calculateExpiryDate = (months: number, date?: Date): Date => {
-        let now = date || new Date();
+    calculateExpiryDate = (months: number, date?: Date, graceDays: number = 3): Date => {
+        let now = date ? new Date(date) : new Date();
         now.setMonth(now.getMonth() + months);
+        now.setDate(now.getDate() + graceDays); // Add grace period
         return now;
     };
+    
 }

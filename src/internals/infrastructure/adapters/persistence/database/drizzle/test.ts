@@ -13,7 +13,7 @@ import {
 } from "../../../../../../../stack/drizzle/schema/exams";
 import * as schema2 from "../../../../../../../stack/drizzle/schema/test";
 import {TestQuestionRecords, Tests} from "../../../../../../../stack/drizzle/schema/test";
-import {and, count, eq, gte, inArray, lte, ne, notInArray, sql} from "drizzle-orm";
+import {and, asc, count, eq, gte, inArray, lte, ne, notInArray, sql} from "drizzle-orm";
 import {BadRequestError, NotFoundError} from "../../../../../../pkg/errors/customError";
 import {PaginationFilter, PaginationMetaData} from "../../../../../../pkg/types/pagination";
 
@@ -91,64 +91,6 @@ export class TestRepositoryDrizzle implements TestRepository {
         }
     }
 
-    getExamTestAnalytics = async (userId: string, examId: string): Promise<TestAnalytics> => {
-        try {
-            const allQuestions = await this.db.query.Questions.findMany({
-                where: eq(Questions.examId, examId),
-                columns: {
-                    id: true
-                }
-            })
-            const allTest = await this.db.query.Tests.findMany({
-                where: and(and(eq(Tests.userId, userId), eq(Tests.examId, examId)), ne(Tests.type, "mock")),
-                columns: {
-                    score: true
-                }
-            })
-
-            let totalTestScore: number = 0
-            let totalTest = allTest.length
-
-            allTest.forEach((test) => {
-                totalTestScore += test.score
-            })
-
-            const allMocks = await this.db.query.Tests.findMany({
-                where: and(and(eq(Tests.userId, userId), eq(Tests.examId, examId)), eq(Tests.type, "mock")),
-                columns: {
-                    score: true
-                }
-            })
-
-            let totalMockScore: number = 0
-            let totalMocks = allMocks.length
-
-            allMocks.forEach((test) => {
-                totalMockScore += test.score
-            })
-
-
-            const usedQuestions = await this.db.query.UserQuestionRecords.findMany({
-                where: and(eq(UserQuestionRecords.userId, userId), eq(UserQuestionRecords.examId, examId)),
-                columns: {
-                    id: true
-                }
-            })
-
-            return {
-                totalQuestions: allQuestions.length,
-                usedQuestions: usedQuestions.length,
-                totalTest,
-                testAveragePercent: totalTestScore / totalTest,
-                totalMocks,
-                mockAveragePercent: totalMockScore / totalMocks,
-            }
-
-        } catch (error) {
-            throw error
-        }
-    }
-
     getTests = async (filter: PaginationFilter): Promise<{ tests: Test[]; metadata: PaginationMetaData }> => {
         let filters = []
         if (filter.startDate || filter.startDate != undefined) {
@@ -215,162 +157,383 @@ export class TestRepositoryDrizzle implements TestRepository {
         return {tests: [], metadata: {total: 0, perPage: filter.limit, currentPage: filter.page}}
     }
 
-    CreateTest = async (test: PartialWithRequired<Test, "questions" | "questionMode" | "userId" | "examId" | "endTime" | "type">): Promise<{
-        testId: string,
-        endTime: Date
-    }> => {
+    getExamTestAnalytics = async (userId: string, examId: string): Promise<TestAnalytics> => {
         try {
-            return await this.db.transaction(async (tx): Promise<{ testId: string, endTime: Date }> => {
-                try {
-                    const exam = await tx.query.Exams.findFirst({
-                        where: eq(Exams.id, test.examId)
-                    })
-                    if (!exam) throw new BadRequestError("exam does not exist")
-
-                    if (test.type == "mock") {
-                        test.questions = exam.mockQuestions as number
-                        test.endTime = new Date(new Date().getTime() + exam.mockTestTime * 60 * 1000)
-                    }
-                    let filters = []
-                    if (test.type == "subjectBased") {
-                        if (test.subjectIds && test.subjectIds.length > 0) {
-                            filters.push(inArray(Questions.subjectId, test.subjectIds))
-                        } else {
-                            throw new BadRequestError(("pass valid subject id"))
-                        }
-                    } else if (test.type == "courseBased") {
-                        if (test.courseIds && test.courseIds.length > 0) {
-                            filters.push(inArray(Questions.courseId, test.courseIds))
-                        } else {
-                            throw new BadRequestError("pass valid course id")
-                        }
-                    } else {
-                        if (test.examId) {
-                            filters.push(eq(Questions.examId, test.examId))
-                        } else {
-                            throw new BadRequestError("pass valid course id")
-                        }
-                    }
-                    // fetch all user questions record
-                    const userQuestionsRes = await tx.query.UserQuestionRecords.findMany({
-                        where: and(eq(UserQuestionRecords.userId, test.userId), eq(UserQuestionRecords.examId, test.examId)),
-                        columns: {
-                            questionId: true
-                        }
-                    })
-                    const userQuestions: string[] = userQuestionsRes.map((question) => question.questionId)
-                    if (userQuestions.length > 0 && test.questionMode !== "all") {
-                        if (test.questionMode == "used") {
-                            filters.push(inArray(Questions.id, userQuestions))
-                        } else {
-                            filters.push(notInArray(Questions.id, userQuestions))
-                        }
-                    }
-
-                    const questionsRes = await tx.query.Questions.findMany({
-                        where: and(...filters),
-                        columns: {
-                            id: true,
-                            type: true,
-                            subjectId: true,
-                            courseId: true,
-                            examId: true,
-                        },
-                        limit: test.questions < exam.mockQuestions ? test.questions : exam.mockQuestions,
-                        orderBy: sql`RANDOM
-                        ()`
-                    })
-                    if (questionsRes.length <= 0) {
-                        throw new NotFoundError(`no questions`)
-                    }
-                    test.questions = questionsRes.length
-                    const testRes = await tx.insert(Tests).values(test).returning({
-                        id: Tests.id,
-                        endTime: Tests.endTime
-                    })
-                    if (testRes.length <= 0) throw new BadRequestError("Test failed to creat")
-                    const testId = testRes[0].id as string
-                    const endTime = testRes[0].endTime as Date
-
-                    const questions = questionsRes.map((question) => {
-                        return {
-                            testId,
-                            userId: test.userId,
-                            questionType: question.type,
-                            questionId: question.id as string,
-                            subjectId: question.subjectId as string,
-                            courseId: question.courseId as string,
-                            examId: question.examId as string
-                        }
-                    })
-
-                    const newUsedQuestion = questions.filter((question) => !userQuestions.includes(question.questionId))
-                    if (newUsedQuestion.length > 0) {
-                        await tx.insert(UserQuestionRecords).values(newUsedQuestion)
-                    }
-                    await tx.insert(TestQuestionRecords).values(questions)
-
-                    return {testId, endTime}
-                } catch (error) {
-                    console.log(error)
-                    try {
-                        tx.rollback()
-                        throw error
-                    } catch (e) {
-                        throw error
-                    }
+            const allQuestions = await this.db.query.Questions.findMany({
+                where: eq(Questions.examId, examId),
+                columns: {
+                    id: true
                 }
             })
+            const allTest = await this.db.query.Tests.findMany({
+                where: and(and(eq(Tests.userId, userId), eq(Tests.examId, examId)), ne(Tests.type, "mock")),
+                columns: {
+                    score: true
+                }
+            })
+
+            let totalTestScore: number = 0
+            let totalTest = allTest.length
+
+            allTest.forEach((test) => {
+                totalTestScore += test.score
+            })
+
+            const allMocks = await this.db.query.Tests.findMany({
+                where: and(and(eq(Tests.userId, userId), eq(Tests.examId, examId)), eq(Tests.type, "mock")),
+                columns: {
+                    score: true
+                }
+            })
+
+            let totalMockScore: number = 0
+            let totalMocks = allMocks.length
+
+            allMocks.forEach((test) => {
+                totalMockScore += test.score
+            })
+
+
+            const usedQuestions = await this.db.query.UserQuestionRecords.findMany({
+                where: and(eq(UserQuestionRecords.userId, userId), eq(UserQuestionRecords.examId, examId)),
+                columns: {
+                    id: true
+                }
+            })
+
+            return {
+                totalQuestions: allQuestions.length,
+                usedQuestions: usedQuestions.length,
+                totalTest,
+                testAveragePercent: totalTestScore / totalTest,
+                totalMocks,
+                mockAveragePercent: totalMockScore / totalMocks,
+            }
+
         } catch (error) {
             throw error
         }
     }
+    
+
+    CreateTest = async (
+        test: PartialWithRequired<Test, "questions" | "questionMode" | "userId" | "examId" | "endTime" | "type">
+      ): Promise<{ testId: string; endTime: Date }> => {
+        try {
+          return await this.db.transaction(async (tx): Promise<{ testId: string; endTime: Date }> => {
+            const exam = await tx.query.Exams.findFirst({
+              where: eq(Exams.id, test.examId)
+            });
+            if (!exam) throw new BadRequestError("Exam does not exist");
+      
+            // Handle mock test timing and question count
+            if (test.type === "mock") {
+              test.questions = exam.mockQuestions as number;
+              test.endTime = new Date(Date.now() + exam.mockTestTime * 60 * 1000);
+            }
+      
+            // Prepare filters
+            const filters: any[] = [];
+            if (test.type === "subjectBased") {
+              if (test.subjectIds?.length) filters.push(inArray(Questions.subjectId, test.subjectIds));
+              else throw new BadRequestError("Pass valid subject ID");
+            } else if (test.type === "courseBased") {
+              if (test.courseIds?.length) filters.push(inArray(Questions.courseId, test.courseIds));
+              else throw new BadRequestError("Pass valid course ID");
+            } else {
+              if (test.examId) filters.push(eq(Questions.examId, test.examId));
+              else throw new BadRequestError("Pass valid exam ID");
+            }
+      
+            // Exclude previously used questions if applicable
+            const userQuestionsRes = await tx.query.UserQuestionRecords.findMany({
+              where: and(eq(UserQuestionRecords.userId, test.userId), eq(UserQuestionRecords.examId, test.examId)),
+              columns: { questionId: true }
+            });
+            const userQuestions = userQuestionsRes.map((q) => q.questionId);
+      
+            if (userQuestions.length > 0 && test.questionMode !== "all") {
+              if (test.questionMode === "used") filters.push(inArray(Questions.id, userQuestions));
+              else filters.push(notInArray(Questions.id, userQuestions));
+            }
+      
+            // Fetch random questions ONCE
+            const questionsRes = await tx.query.Questions.findMany({
+              where: and(...filters),
+              columns: {
+                id: true,
+                type: true,
+                subjectId: true,
+                courseId: true,
+                examId: true
+              },
+              limit: Math.min(
+                Number(test.questions) || 0,
+                Number(exam.mockQuestions) || Number(test.questions) || 0
+              ),
+              orderBy: sql`RANDOM()`
+            });
+      
+            if (!questionsRes.length) throw new NotFoundError("No questions found for this test");
+      
+            test.questions = questionsRes.length;
+      
+            // Create test
+            const [testRes] = await tx.insert(Tests).values(test).returning({
+              id: Tests.id,
+              endTime: Tests.endTime
+            });
+            if (!testRes) throw new BadRequestError("Test creation failed");
+      
+            const testId = testRes.id as string;
+            const endTime = testRes.endTime as Date;
+      
+            // Link questions to test
+            const questions = questionsRes.map((q) => ({
+              testId,
+              userId: test.userId,
+              questionType: q.type,
+              questionId: q.id as string,
+              subjectId: q.subjectId as string,
+              courseId: q.courseId as string,
+              examId: q.examId as string,
+            }));
+      
+            // Save new used question records
+            const newUsedQuestions = questions.filter((q) => !userQuestions.includes(q.questionId));
+            if (newUsedQuestions.length > 0) {
+              await tx.insert(UserQuestionRecords).values(newUsedQuestions);
+            }
+      
+            await tx.insert(TestQuestionRecords).values(questions);
+            return { testId, endTime };
+          });
+        } catch (error) {
+          throw error;
+        }
+      };
+      
+
+
+    // CreateTest = async (test: PartialWithRequired<Test, "questions" | "questionMode" | "userId" | "examId" | "endTime" | "type">): Promise<{
+    //     testId: string,
+    //     endTime: Date
+    // }> => {
+    //     try {
+    //         return await this.db.transaction(async (tx): Promise<{ testId: string, endTime: Date }> => {
+    //             try {
+    //                 const exam = await tx.query.Exams.findFirst({
+    //                     where: eq(Exams.id, test.examId)
+    //                 })
+    //                 if (!exam) throw new BadRequestError("exam does not exist")
+
+    //                 if (test.type == "mock") {
+    //                     test.questions = exam.mockQuestions as number
+    //                     test.endTime = new Date(new Date().getTime() + exam.mockTestTime * 60 * 1000)
+    //                 }
+    //                 let filters = []
+    //                 if (test.type == "subjectBased") {
+    //                     if (test.subjectIds && test.subjectIds.length > 0) {
+    //                         filters.push(inArray(Questions.subjectId, test.subjectIds))
+    //                     } else {
+    //                         throw new BadRequestError(("pass valid subject id"))
+    //                     }
+    //                 } else if (test.type == "courseBased") {
+    //                     if (test.courseIds && test.courseIds.length > 0) {
+    //                         filters.push(inArray(Questions.courseId, test.courseIds))
+    //                     } else {
+    //                         throw new BadRequestError("pass valid course id")
+    //                     }
+    //                 } else {
+    //                     if (test.examId) {
+    //                         filters.push(eq(Questions.examId, test.examId))
+    //                     } else {
+    //                         throw new BadRequestError("pass valid course id")
+    //                     }
+    //                 }
+    //                 // fetch all user questions record
+    //                 const userQuestionsRes = await tx.query.UserQuestionRecords.findMany({
+    //                     where: and(eq(UserQuestionRecords.userId, test.userId), eq(UserQuestionRecords.examId, test.examId)),
+    //                     columns: {
+    //                         questionId: true
+    //                     }
+    //                 })
+    //                 const userQuestions: string[] = userQuestionsRes.map((question) => question.questionId)
+    //                 if (userQuestions.length > 0 && test.questionMode !== "all") {
+    //                     if (test.questionMode == "used") {
+    //                         filters.push(inArray(Questions.id, userQuestions))
+    //                     } else {
+    //                         filters.push(notInArray(Questions.id, userQuestions))
+    //                     }
+    //                 }
+
+    //                 const questionsRes = await tx.query.Questions.findMany({
+    //                     where: and(...filters),
+    //                     columns: {
+    //                         id: true,
+    //                         type: true,
+    //                         subjectId: true,
+    //                         courseId: true,
+    //                         examId: true,
+    //                     },
+    //                     limit: test.questions < exam.mockQuestions ? test.questions : exam.mockQuestions,
+    //                     orderBy: sql`RANDOM
+    //                     ()`
+    //                 })
+    //                 if (questionsRes.length <= 0) {
+    //                     throw new NotFoundError(`no questions`)
+    //                 }
+    //                 test.questions = questionsRes.length
+    //                 const testRes = await tx.insert(Tests).values(test).returning({
+    //                     id: Tests.id,
+    //                     endTime: Tests.endTime
+    //                 })
+    //                 if (testRes.length <= 0) throw new BadRequestError("Test failed to creat")
+    //                 const testId = testRes[0].id as string
+    //                 const endTime = testRes[0].endTime as Date
+
+    //                 const questions = questionsRes.map((question) => {
+    //                     return {
+    //                         testId,
+    //                         userId: test.userId,
+    //                         questionType: question.type,
+    //                         questionId: question.id as string,
+    //                         subjectId: question.subjectId as string,
+    //                         courseId: question.courseId as string,
+    //                         examId: question.examId as string
+    //                     }
+    //                 })
+
+    //                 const newUsedQuestion = questions.filter((question) => !userQuestions.includes(question.questionId))
+    //                 if (newUsedQuestion.length > 0) {
+    //                     await tx.insert(UserQuestionRecords).values(newUsedQuestion)
+    //                 }
+    //                 await tx.insert(TestQuestionRecords).values(questions)
+
+    //                 return {testId, endTime}
+    //             } catch (error) {
+    //                 console.log(error)
+    //                 try {
+    //                     tx.rollback()
+    //                     throw error
+    //                 } catch (e) {
+    //                     throw error
+    //                 }
+    //             }
+    //         })
+    //     } catch (error) {
+    //         throw error
+    //     }
+    // }
 
     getTestQuestions = async (testId: string, userId: string): Promise<Question[]> => {
         try {
-            // fetch all user questions record
+            // Fetch test question records (preserve order)
             const testQuestionsRes = await this.db.query.TestQuestionRecords.findMany({
                 where: and(eq(TestQuestionRecords.userId, userId), eq(TestQuestionRecords.testId, testId)),
-                columns: {
-                    questionId: true
-                }
-            })
+                orderBy: asc(TestQuestionRecords.id),
+                columns: { questionId: true }
+            });
+    
             if (testQuestionsRes.length <= 0) {
-                throw new NotFoundError("No questions for this test")
+                throw new NotFoundError("No questions for this test");
             }
-            let filters = []
-            const userQuestions: string[] = testQuestionsRes.map((question) => question.questionId)
-            filters.push(inArray(Questions.id, userQuestions))
-
-            const questionsRes: QuestionT[] = await this.db.query.Questions.findMany({
-                where: and(...filters),
-                with: {
-                    options: true,
-                },
-                orderBy: sql`RANDOM
-                ()`
-            })
-            return questionsRes.map((question): Question => {
-                return {
-                    id: question?.id as string,
-                    type: question?.type as QuestionType,
-                    explanation: question?.explanation as string,
-                    question: question?.question as string,
-                    options: question?.options?.map((option: any): Option => {
-                        return {
-                            id: option.id,
-                            index: option.index,
-                            value: option.value,
-                            selected: option.selected,
-                            answer: option.answer,
-                        }
-                    })
-                }
-            })
+    
+            const userQuestions = testQuestionsRes.map((q) => q.questionId);
+    
+            // Define type that supports relation
+            type QuestionWithOptions = typeof Questions.$inferSelect & {
+                options?: Array<{
+                    id: string;
+                    index: number;
+                    value: string;
+                    selected?: number | null; // ✅ numeric (0 or 1)
+                    answer?: boolean | null;
+                }>;
+            };
+    
+            // Fetch full question details
+            const questionsRes: QuestionWithOptions[] = await this.db.query.Questions.findMany({
+                where: inArray(Questions.id, userQuestions),
+                with: { options: true }
+            });
+    
+            // Map for quick access
+            const questionsMap = new Map(questionsRes.map(q => [q.id, q]));
+    
+            // Reorder based on saved order
+            const orderedQuestions = userQuestions.map((id) => {
+                const q = questionsMap.get(id);
+                if (!q) throw new Error(`Question ${id} not found`);
+                return q;
+            });
+    
+            // Map to standard Question[]
+            return orderedQuestions.map((question): Question => ({
+                id: question.id as string,
+                type: question.type as QuestionType,
+                explanation: question.explanation ?? "",
+                question: question.question ?? "",
+                options: (question.options ?? []).map((opt): Option => ({
+                    id: opt.id,
+                    index: opt.index,
+                    value: opt.value,
+                    selected: opt.selected ?? 0, // ✅ numeric (defaults to 0)
+                    answer: opt.answer ?? false  // ✅ boolean
+                }))
+            }));
         } catch (error) {
-            throw error
+            throw error;
         }
-    }
+    };
+    
+    
+
+    // getTestQuestions = async (testId: string, userId: string): Promise<Question[]> => {
+    //     try {
+    //         // fetch all user questions record
+    //         const testQuestionsRes = await this.db.query.TestQuestionRecords.findMany({
+    //             where: and(eq(TestQuestionRecords.userId, userId), eq(TestQuestionRecords.testId, testId)),
+    //             columns: {
+    //                 questionId: true
+    //             }
+    //         })
+    //         if (testQuestionsRes.length <= 0) {
+    //             throw new NotFoundError("No questions for this test")
+    //         }
+    //         let filters = []
+    //         const userQuestions: string[] = testQuestionsRes.map((question) => question.questionId)
+    //         filters.push(inArray(Questions.id, userQuestions))
+
+    //         const questionsRes: QuestionT[] = await this.db.query.Questions.findMany({
+    //             where: and(...filters),
+    //             with: {
+    //                 options: true,
+    //             },
+    //             orderBy: sql`RANDOM
+    //             ()`
+    //         })
+    //         return questionsRes.map((question): Question => {
+    //             return {
+    //                 id: question?.id as string,
+    //                 type: question?.type as QuestionType,
+    //                 explanation: question?.explanation as string,
+    //                 question: question?.question as string,
+    //                 options: question?.options?.map((option: any): Option => {
+    //                     return {
+    //                         id: option.id,
+    //                         index: option.index,
+    //                         value: option.value,
+    //                         selected: option.selected,
+    //                         answer: option.answer,
+    //                     }
+    //                 })
+    //             }
+    //         })
+    //     } catch (error) {
+    //         throw error
+    //     }
+    // }
 
     scoreTest = async (testId: string, userId: string, answers: UserAnswer[]): Promise<string> => {
         try {

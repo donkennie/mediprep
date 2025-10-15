@@ -1,7 +1,7 @@
 import {UserExamAccessRepository} from "../../../../../domain/examAccess/repository";
 import {PaginationFilter, PaginationMetaData} from "../../../../../../pkg/types/pagination";
 import {Exam} from "../../../../../domain/exams/exam";
-import {and, count, eq, ilike, inArray, ne} from "drizzle-orm";
+import {and, count, eq, gt, ilike, inArray, isNull, ne, or} from "drizzle-orm";
 import * as schemaExam from "../../../../../../../stack/drizzle/schema/exams";
 import {Exams, Questions} from "../../../../../../../stack/drizzle/schema/exams";
 import {PoolClient} from "pg";
@@ -65,84 +65,101 @@ export class UserExamAccessRepositoryDrizzle implements UserExamAccessRepository
         }
     }
 
-    getExams = async (filter: PaginationFilter): Promise<{ exams: Exam[]; metadata: PaginationMetaData }> => {
+    getExams = async (
+        filter: PaginationFilter
+    ): Promise<{ exams: Exam[]; metadata: PaginationMetaData }> => {
         try {
-            const filters: string | any[] = [];
-            if (filter.name || filter.name != undefined) {
+            const filters: any[] = [];
+            if (filter.name && filter.name.trim() !== "") {
                 filters.push(ilike(Exams.name, `%${filter.name}%`));
             }
     
-            // Get the total count of rows for this user
-            const totalResult = await this.db.select({count: count()}).from(UserExamAccesses)
+            const totalResult = await this.db
+                .select({ count: count() })
+                .from(UserExamAccesses)
                 .where(eq(UserExamAccesses.userId, filter.userId as string));
+    
             const total = totalResult[0].count;
-            
+    
             if (total <= 0) {
                 return {
-                    exams: [], 
+                    exams: [],
                     metadata: {
                         total: 0,
                         perPage: filter.limit,
-                        currentPage: filter.page
-                    }
-                }
+                        currentPage: filter.page,
+                    },
+                };
             }
     
-            // Get user's exam access records with expiry dates
-            const uerows = await this.db.query.UserExamAccess.findMany({
-                where: eq(UserExamAccesses.userId, filter.userId as string),
+            const now = new Date();
+            const userExamAccessRows = await this.db.query.UserExamAccess.findMany({
+                where: and(
+                    eq(UserExamAccesses.userId, filter.userId as string),
+                    or(
+                        isNull(UserExamAccesses.expiryDate), 
+                        gt(UserExamAccesses.expiryDate, now) 
+                    )
+                ),
                 limit: filter.limit,
-                offset: (filter.page - 1) * filter.limit
+                offset: (filter.page - 1) * filter.limit,
             });
     
-            const examIds = uerows.map((ue) => ue.examId);
-            
-            // Get exam details
-            const rows = await this.db.query.Exams.findMany({
+            if (userExamAccessRows.length === 0) {
+                return {
+                    exams: [],
+                    metadata: {
+                        total: 0,
+                        perPage: filter.limit,
+                        currentPage: filter.page,
+                    },
+                };
+            }
+    
+            const examIds = userExamAccessRows.map((ue) => ue.examId);
+    
+            const examRows = await this.db.query.Exams.findMany({
                 where: inArray(Exams.id, examIds),
             });
     
-            let exams: Exam[] = [];
-            
-            for await (const exam of rows) {
-                // Find the user's expiry date for this exam
-                const userExamAccess = uerows.find(ue => ue.examId === exam.id);
-                
-                const allTest = await this.db.query.Tests.findMany({
+            const exams: Exam[] = [];
+    
+            for await (const exam of examRows) {
+                const userExamAccess = userExamAccessRows.find(
+                    (ue) => ue.examId === exam.id
+                );
+    
+                const allTests = await this.db.query.Tests.findMany({
                     where: and(
-                        and(eq(Tests.userId, filter.userId as string), eq(Tests.examId, exam.id as string)), 
+                        eq(Tests.userId, filter.userId as string),
+                        eq(Tests.examId, exam.id as string),
                         ne(Tests.type, "mock")
                     ),
-                    columns: {
-                        score: true
-                    }
+                    columns: { score: true },
                 });
     
-                let totalTestScore: number = 0;
-                let totalTest = allTest.length;
-    
-                allTest.forEach((test) => {
-                    totalTestScore += test.score;
-                });
+                const testScores = allTests.map((t) => t.score);
+                const testAverage =
+                    testScores.length > 0
+                        ? testScores.reduce((a, b) => a + b, 0) / testScores.length
+                        : 0;
     
                 const allMocks = await this.db.query.Tests.findMany({
                     where: and(
-                        and(eq(Tests.userId, filter.userId as string), eq(Tests.examId, exam.id as string)), 
+                        eq(Tests.userId, filter.userId as string),
+                        eq(Tests.examId, exam.id as string),
                         eq(Tests.type, "mock")
                     ),
-                    columns: {
-                        score: true
-                    }
+                    columns: { score: true },
                 });
     
-                let totalMockScore: number = 0;
-                let totalMocks = allMocks.length;
+                const mockScores = allMocks.map((t) => t.score);
+                const mockAverage =
+                    mockScores.length > 0
+                        ? mockScores.reduce((a, b) => a + b, 0) / mockScores.length
+                        : 0;
     
-                allMocks.forEach((test) => {
-                    totalMockScore += test.score;
-                });
-    
-                const toAdd: Exam = {
+                exams.push({
                     id: exam.id as string,
                     name: exam.name as string,
                     description: exam.description as string,
@@ -150,29 +167,27 @@ export class UserExamAccessRepositoryDrizzle implements UserExamAccessRepository
                     imageURL: exam.imageURL as string,
                     createdAt: exam.createdAt as Date,
                     updatedAt: exam.updatedAt as Date,
-                    testAveragePercent: totalTest > 0 ? totalTestScore / totalTest : 0,
-                    mockAveragePercent: totalMocks > 0 ? totalMockScore / totalMocks : 0,
+                    testAveragePercent: testAverage,
+                    mockAveragePercent: mockAverage,
                     totalMockScores: exam.totalMockScores,
                     mocksTaken: exam.mocksTaken,
                     mockTestTime: exam.mockTestTime,
-                    expiryDate: userExamAccess?.expiryDate 
-                };
-    
-                exams.push(toAdd);
+                    expiryDate: userExamAccess?.expiryDate,
+                });
             }
     
             return {
-                exams, 
+                exams,
                 metadata: {
-                    total: total,
+                    total: exams.length,
                     perPage: filter.limit,
-                    currentPage: filter.page
-                }
+                    currentPage: filter.page,
+                },
             };
-    
         } catch (error) {
             throw error;
         }
-    }
+    };
+    
 
 }
