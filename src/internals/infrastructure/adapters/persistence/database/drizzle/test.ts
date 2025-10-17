@@ -487,6 +487,32 @@ export class TestRepositoryDrizzle implements TestRepository {
         }
     };
     
+    deleteTest = async (testId: string, userId: string): Promise<string> => {
+        try {
+            const test = await this.db.query.Tests.findFirst({
+                where: and(eq(Tests.id, testId), eq(Tests.userId, userId)),
+            });
+    
+            if (!test) {
+                throw new NotFoundError("Test not found or unauthorized");
+            }
+    
+            if (test.status !== "complete" && test.status !== "paused") {
+                throw new BadRequestError("You can only delete a completed or paused test");
+            }
+    
+            await this.db.transaction(async (tx) => {
+                await tx.delete(TestQuestionRecords).where(eq(TestQuestionRecords.testId, testId));
+    
+                await tx.delete(Tests).where(eq(Tests.id, testId));
+            });
+    
+            return "Test deleted successfully";
+        } catch (error) {
+            console.error("deleteTest error:", error);
+            throw error;
+        }
+    };
     
 
     // getTestQuestions = async (testId: string, userId: string): Promise<Question[]> => {

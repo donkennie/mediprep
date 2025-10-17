@@ -88,6 +88,16 @@ export class TestsHandler {
                 this.pauseTest
             );
 
+
+            this.router
+            .route("/:examId/:testId/delete")
+            .delete(
+                ValidationMiddleware(userExamIdSchema, "params"),
+                ValidationMiddleware(testIdSchema, "params"),
+                CheckExamAccess(userExamAccessService),
+                this.deleteCompletedTest
+            );
+
         this.router
             .route("/:examId/:testId/resume")
             .post(
@@ -191,6 +201,15 @@ export class TestsHandler {
         await this.testServices.commands.pauseTest.Handle(testId, userId);
 
         new SuccessResponse(res, { message: "test paused" }).send();
+    };
+
+    deleteCompletedTest = async (req: Request, res: Response) => {
+        const testId = req.params.testId;
+        const userId = req.userD?.id as string;
+
+        await this.testServices.commands.deleteCompletedTest.Handle(testId, userId);
+
+        new SuccessResponse(res, { message: "test deleted" }).send();
     };
 
     resumeTest = async (req: Request, res: Response) => {

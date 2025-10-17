@@ -33,15 +33,33 @@ export class CheckoutPaystackC implements CheckoutPaystack {
             if (!user.id) {
                 throw new UnAuthorizedError("try to login")
             }
+            
             const cart = await this.cartRepository.GetCart(params.userID)
             const addParams: AddSaleParams = {
                 userID: user.id,
                 cartID: cart.id,
                 email: user.email
             }
+
+            let exchangeRate = 1500; // fallback rate, just in case API fails
+            try {
+                const resp = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+                const data = await resp.json();
+                if (data?.rates?.NGN) {
+                    exchangeRate = data.rates.NGN;
+                } else {
+                    console.warn("Exchange rate API returned invalid data. Using fallback rate.");
+                }
+            } catch (error) {
+                console.error("Failed to fetch exchange rate. Using fallback rate.", error);
+            }
+            
             const {totalPrice, saleID} = await this.salesRepository.AddSale(addParams)
+
+            const totalPriceInNaira = totalPrice * exchangeRate;
+
             const transactionInitializer: InitializeTransaction = {
-                amount: (Math.round(totalPrice * 100)).toString(),
+                amount: (Math.round(totalPriceInNaira * 100)).toString(),
                 email: user.email,
                 // currency:"usd"
             }

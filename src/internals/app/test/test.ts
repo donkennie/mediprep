@@ -10,6 +10,7 @@ import {ForceEndTest, ForceEndTestC} from "./command/forceEndTest";
 import {PauseTest, PauseTestC} from "./command/pauseTest";
 import {ResumeTest, ResumeTestC} from "./command/resumeTest";
 import {GetExamQuestions, GetExamQuestionsC} from "./query/getExamQuestions";
+import { DeleteCompletedTest, DeleteCompletedTestC } from "./command/deleteCompletedTest";
 
 export class Commands {
     createTest: CreateTest
@@ -18,6 +19,7 @@ export class Commands {
     forceEndTest: ForceEndTest
     pauseTest: PauseTest
     resumeTest: ResumeTest
+    deleteCompletedTest: DeleteCompletedTest
 
 
     constructor(testRepository: TestRepository){ //cacheRepository: CacheRepository) {
@@ -27,6 +29,7 @@ export class Commands {
         this.forceEndTest = new ForceEndTestC(testRepository)
         this.pauseTest = new PauseTestC(testRepository)
         this.resumeTest = new ResumeTestC(testRepository)//, cacheRepository)
+        this.deleteCompletedTest = new DeleteCompletedTestC(testRepository)
     }
 }
 

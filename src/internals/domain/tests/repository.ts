@@ -23,4 +23,6 @@ export interface TestRepository {
         questions: QuestionWithReason[],
         metadata: PaginationMetaData
     }>
+
+    deleteTest: (testId: string, userId: string) => Promise<string>
 }
