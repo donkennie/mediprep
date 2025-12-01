@@ -47,7 +47,7 @@ export class UserOnboardingHandler {
 
         this.router
             .route("/password/forgot")
-            .get(
+            .post(
                 ValidationMiddleware(forgotPasswordSchema, "body"),
                 this.forgottenPassword
             );

@@ -13,7 +13,7 @@ import {
 } from "../../../../../../../stack/drizzle/schema/exams";
 import * as schema2 from "../../../../../../../stack/drizzle/schema/test";
 import {TestQuestionRecords, Tests} from "../../../../../../../stack/drizzle/schema/test";
-import {and, asc, count, eq, gte, inArray, lte, ne, notInArray, sql} from "drizzle-orm";
+import {and, asc, count, eq, gt, gte, inArray, isNull, lte, ne, notInArray, or, sql} from "drizzle-orm";
 import {BadRequestError, NotFoundError} from "../../../../../../pkg/errors/customError";
 import {PaginationFilter, PaginationMetaData} from "../../../../../../pkg/types/pagination";
 
@@ -91,71 +91,92 @@ export class TestRepositoryDrizzle implements TestRepository {
         }
     }
 
-    getTests = async (filter: PaginationFilter): Promise<{ tests: Test[]; metadata: PaginationMetaData }> => {
-        let filters = []
-        if (filter.startDate || filter.startDate != undefined) {
-            filters.push(gte(Tests.createdAt, filter.startDate as Date))
+    getTests = async (
+        filter: PaginationFilter
+    ): Promise<{ tests: Test[]; metadata: PaginationMetaData }> => {
+    
+        const filters: any[] = [];
+    
+        if (filter.startDate) {
+            filters.push(gte(Tests.createdAt, filter.startDate as Date));
         }
-        if (filter.endDate || filter.endDate != undefined) {
-            filters.push(lte(Tests.createdAt, filter.endDate as Date))
+    
+        if (filter.endDate) {
+            filters.push(lte(Tests.createdAt, filter.endDate as Date));
         }
-        if (filter.testType || filter.testType != undefined) {
-            filters.push(eq(Tests.type, filter.testType as string))
+    
+        if (filter.testType) {
+            filters.push(eq(Tests.type, filter.testType as string));
         }
-        if (filter.userId || filter.userId != undefined) {
-            filters.push(eq(Tests.userId, filter.userId as string))
+    
+        if (filter.userId) {
+            filters.push(eq(Tests.userId, filter.userId as string));
         }
-        if (filter.status || filter.status != undefined) {
-            filters.push(eq(Tests.status, filter.status as string))
+    
+        if (filter.status) {
+            filters.push(eq(Tests.status, filter.status as string));
         }
-        // Get the total count of rows
-        const totalResult = await this.db.select({count: count()}).from(Tests).where(and(...filters));
-        const total = totalResult[0].count;
+    
+        const now = new Date();
+        filters.push(
+            or(
+                isNull(Tests.endTime),      
+                gt(Tests.endTime, now)      
+            )
+        );
+    
+        const totalResult = await this.db
+            .select({ count: count() })
+            .from(Tests)
+            .where(and(...filters));
+    
+        const total = Number(totalResult[0]?.count ?? 0);
+    
         if (total <= 0) {
             return {
-                tests: [], metadata: {
+                tests: [],
+                metadata: {
                     total: 0,
                     perPage: filter.limit,
-                    currentPage: filter.page
-                }
-            }
+                    currentPage: filter.page,
+                },
+            };
         }
+    
         const tests = await this.db.query.Tests.findMany({
             where: and(...filters),
             limit: filter.limit,
             offset: (filter.page - 1) * filter.limit,
-            orderBy: Tests.createdAt
+            orderBy: Tests.createdAt,
         });
-        if (tests.length > 0) {
-            return {
-                tests: tests.map((test): Test => {
-                    return {
-                        id: test.id as string,
-                        status: test.status,
-                        userId: test.userId as string,
-                        examId: test.examId as string,
-                        type: test.type as TestType,
-                        createdAt: test.createdAt as Date,
-                        updatedAt: test.updatedAt as Date,
-                        score: test.score as number,
-                        questions: test.questions as number,
-                        correctAnswers: test.correctAnswers as number,
-                        incorrectAnswers: test.incorrectAnswers as number,
-                        unansweredQuestions: test.unansweredQuestions as number,
-                        questionMode: test.questionMode as TestMode,
-                        subjectIds: test.subjectIds,
-                        courseIds: test.courseIds,
-                        endTime: test.endTime as Date,
-                    }
-                }), metadata: {
-                    total: total,
-                    perPage: filter.limit,
-                    currentPage: filter.page
-                }
-            }
-        }
-        return {tests: [], metadata: {total: 0, perPage: filter.limit, currentPage: filter.page}}
-    }
+    
+        return {
+            tests: tests.map((test): Test => ({
+                id: test.id as string,
+                status: test.status,
+                userId: test.userId as string,
+                examId: test.examId as string,
+                type: test.type as TestType,
+                createdAt: test.createdAt as Date,
+                updatedAt: test.updatedAt as Date,
+                score: test.score as number,
+                questions: test.questions as number,
+                correctAnswers: test.correctAnswers as number,
+                incorrectAnswers: test.incorrectAnswers as number,
+                unansweredQuestions: test.unansweredQuestions as number,
+                questionMode: test.questionMode as TestMode,
+                subjectIds: test.subjectIds,
+                courseIds: test.courseIds,
+                endTime: test.endTime as Date,
+            })),
+            metadata: {
+                total,
+                perPage: filter.limit,
+                currentPage: filter.page,
+            },
+        };
+    };
+    
 
     getExamTestAnalytics = async (userId: string, examId: string): Promise<TestAnalytics> => {
         try {
@@ -314,118 +335,6 @@ export class TestRepositoryDrizzle implements TestRepository {
       };
       
 
-
-    // CreateTest = async (test: PartialWithRequired<Test, "questions" | "questionMode" | "userId" | "examId" | "endTime" | "type">): Promise<{
-    //     testId: string,
-    //     endTime: Date
-    // }> => {
-    //     try {
-    //         return await this.db.transaction(async (tx): Promise<{ testId: string, endTime: Date }> => {
-    //             try {
-    //                 const exam = await tx.query.Exams.findFirst({
-    //                     where: eq(Exams.id, test.examId)
-    //                 })
-    //                 if (!exam) throw new BadRequestError("exam does not exist")
-
-    //                 if (test.type == "mock") {
-    //                     test.questions = exam.mockQuestions as number
-    //                     test.endTime = new Date(new Date().getTime() + exam.mockTestTime * 60 * 1000)
-    //                 }
-    //                 let filters = []
-    //                 if (test.type == "subjectBased") {
-    //                     if (test.subjectIds && test.subjectIds.length > 0) {
-    //                         filters.push(inArray(Questions.subjectId, test.subjectIds))
-    //                     } else {
-    //                         throw new BadRequestError(("pass valid subject id"))
-    //                     }
-    //                 } else if (test.type == "courseBased") {
-    //                     if (test.courseIds && test.courseIds.length > 0) {
-    //                         filters.push(inArray(Questions.courseId, test.courseIds))
-    //                     } else {
-    //                         throw new BadRequestError("pass valid course id")
-    //                     }
-    //                 } else {
-    //                     if (test.examId) {
-    //                         filters.push(eq(Questions.examId, test.examId))
-    //                     } else {
-    //                         throw new BadRequestError("pass valid course id")
-    //                     }
-    //                 }
-    //                 // fetch all user questions record
-    //                 const userQuestionsRes = await tx.query.UserQuestionRecords.findMany({
-    //                     where: and(eq(UserQuestionRecords.userId, test.userId), eq(UserQuestionRecords.examId, test.examId)),
-    //                     columns: {
-    //                         questionId: true
-    //                     }
-    //                 })
-    //                 const userQuestions: string[] = userQuestionsRes.map((question) => question.questionId)
-    //                 if (userQuestions.length > 0 && test.questionMode !== "all") {
-    //                     if (test.questionMode == "used") {
-    //                         filters.push(inArray(Questions.id, userQuestions))
-    //                     } else {
-    //                         filters.push(notInArray(Questions.id, userQuestions))
-    //                     }
-    //                 }
-
-    //                 const questionsRes = await tx.query.Questions.findMany({
-    //                     where: and(...filters),
-    //                     columns: {
-    //                         id: true,
-    //                         type: true,
-    //                         subjectId: true,
-    //                         courseId: true,
-    //                         examId: true,
-    //                     },
-    //                     limit: test.questions < exam.mockQuestions ? test.questions : exam.mockQuestions,
-    //                     orderBy: sql`RANDOM
-    //                     ()`
-    //                 })
-    //                 if (questionsRes.length <= 0) {
-    //                     throw new NotFoundError(`no questions`)
-    //                 }
-    //                 test.questions = questionsRes.length
-    //                 const testRes = await tx.insert(Tests).values(test).returning({
-    //                     id: Tests.id,
-    //                     endTime: Tests.endTime
-    //                 })
-    //                 if (testRes.length <= 0) throw new BadRequestError("Test failed to creat")
-    //                 const testId = testRes[0].id as string
-    //                 const endTime = testRes[0].endTime as Date
-
-    //                 const questions = questionsRes.map((question) => {
-    //                     return {
-    //                         testId,
-    //                         userId: test.userId,
-    //                         questionType: question.type,
-    //                         questionId: question.id as string,
-    //                         subjectId: question.subjectId as string,
-    //                         courseId: question.courseId as string,
-    //                         examId: question.examId as string
-    //                     }
-    //                 })
-
-    //                 const newUsedQuestion = questions.filter((question) => !userQuestions.includes(question.questionId))
-    //                 if (newUsedQuestion.length > 0) {
-    //                     await tx.insert(UserQuestionRecords).values(newUsedQuestion)
-    //                 }
-    //                 await tx.insert(TestQuestionRecords).values(questions)
-
-    //                 return {testId, endTime}
-    //             } catch (error) {
-    //                 console.log(error)
-    //                 try {
-    //                     tx.rollback()
-    //                     throw error
-    //                 } catch (e) {
-    //                     throw error
-    //                 }
-    //             }
-    //         })
-    //     } catch (error) {
-    //         throw error
-    //     }
-    // }
-
     getTestQuestions = async (testId: string, userId: string): Promise<Question[]> => {
         try {
             // Fetch test question records (preserve order)
@@ -478,7 +387,7 @@ export class TestRepositoryDrizzle implements TestRepository {
                     id: opt.id,
                     index: opt.index,
                     value: opt.value,
-                    selected: opt.selected ?? 0, // ✅ numeric (defaults to 0)
+                    selected: opt.selected ?? 0, 
                     answer: opt.answer ?? false  // ✅ boolean
                 }))
             }));
@@ -734,67 +643,116 @@ export class TestRepositoryDrizzle implements TestRepository {
     }
 
     pauseTestStatus = async (testId: string, userId: string): Promise<void> => {
-        try {
-            const test = await this.db.query.Tests.findFirst({
-                where: and(eq(Tests.id, testId), eq(Tests.userId, userId))
-            })
-            if (!test) {
-                throw new BadRequestError("test does not exist")
-            }
-            if (test.status !== "inProgress") {
-                throw new BadRequestError("test completed ")
-            }
-
-            const endTime = test.endTime as Date
-            const timeLeft = (endTime.getTime() - new Date().getTime()) / 1000
-
-            await this.db.update(Tests).set({
-                status: 'paused',
-                timeLeft: Math.round(timeLeft),
-            }).where(eq(Tests.id, testId))
-
-
-        } catch (error) {
-            throw error
+        const test = await this.db.query.Tests.findFirst({
+            where: and(
+                eq(Tests.id, testId),
+                eq(Tests.userId, userId)
+            ),
+        });
+    
+        if (!test) {
+            throw new BadRequestError("Test does not exist");
         }
-    }
-
-    resumeTestStatus = async (testId: string, userId: string): Promise<{ testId: string, timeLeft: number }> => {
-        try {
-            const test = await this.db.query.Tests.findFirst({
-                where: and(eq(Tests.id, testId), eq(Tests.userId, userId))
-            })
-            if (!test) {
-                throw new BadRequestError("test does not exist")
-            }
-            if (test.status !== "paused") {
-                throw new BadRequestError("test is not paused ")
-            }
-
-            if (test.timeLeft < 1) {
-                await this.db.update(Tests).set({
-                    status: 'complete',
-                }).where(eq(Tests.id, testId))
-                throw new BadRequestError("test completed ")
-            }
-
-            const timeLeft = test.timeLeft as number
-            const endTime = new Date((timeLeft * 1000) + (new Date().getTime()))
-
-
-            await this.db.update(Tests).set({
-                status: 'inProgress',
-                endTime,
-            }).where(eq(Tests.id, testId))
-
-            return {
-                timeLeft,
-                testId: test.id as string
-            }
-        } catch (error) {
-            throw error
+    
+        if (test.status !== "inProgress") {
+            throw new BadRequestError("Test is not in progress");
         }
-    }
+    
+        if (!test.endTime) {
+            throw new BadRequestError("Test timer is corrupted");
+        }
+    
+        const now = new Date();
+        const endTime = new Date(test.endTime);
+    
+        const secondsLeft = Math.max(
+            0,
+            Math.floor((endTime.getTime() - now.getTime()) / 1000)
+        );
+    
+        if (secondsLeft <= 0) {
+            await this.db
+                .update(Tests)
+                .set({
+                    status: "complete",
+                    timeLeft: 0,
+                    endTime: null,
+                })
+                .where(and(
+                    eq(Tests.id, testId),
+                    eq(Tests.status, "inProgress") 
+                ));
+    
+            throw new BadRequestError("Test time has expired");
+        }
+    
+        await this.db
+            .update(Tests)
+            .set({
+                status: "paused",
+                timeLeft: secondsLeft, 
+                endTime: null,        
+            })
+            .where(and(
+                eq(Tests.id, testId),
+                eq(Tests.status, "inProgress")
+            ));
+    };
+
+    resumeTestStatus = async (
+        testId: string,
+        userId: string
+    ): Promise<{ testId: string; timeLeft: number }> => {
+        const test = await this.db.query.Tests.findFirst({
+            where: and(
+                eq(Tests.id, testId),
+                eq(Tests.userId, userId)
+            ),
+        });
+    
+        if (!test) {
+            throw new BadRequestError("Test does not exist");
+        }
+    
+        if (test.status !== "paused") {
+            throw new BadRequestError("Test is not paused");
+        }
+    
+        const frozenTimeLeft = test.timeLeft as number | null;
+    
+        if (!frozenTimeLeft || frozenTimeLeft <= 0) {
+            await this.db
+                .update(Tests)
+                .set({
+                    status: "complete",
+                    timeLeft: 0,
+                    endTime: null,
+                })
+                .where(eq(Tests.id, testId));
+    
+            throw new BadRequestError("No time left to resume");
+        }
+    
+        const newEndTime = new Date(Date.now() + frozenTimeLeft * 1000);
+    
+        await this.db
+            .update(Tests)
+            .set({
+                status: "inProgress",
+                endTime: newEndTime, 
+                timeLeft: undefined,  
+            })
+            .where(and(
+                eq(Tests.id, testId),
+                eq(Tests.status, "paused") 
+            ));
+    
+        return {
+            testId,
+            timeLeft: frozenTimeLeft,
+        };
+    };
+    
 
     endTest = async (testId: string, userId: string): Promise<void> => {
         try {
